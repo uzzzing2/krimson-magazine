@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 로컬 작업용 참고 이미지/프로토타입 — 푸시 제외
+/public/참고이미지/
