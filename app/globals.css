@@ -64,17 +64,12 @@ body.booted .topbar{ opacity:1; transform:none; }
 
 .nav{ display:flex; align-items:center; gap:40px; }
 .nav__item{
-  position:relative; font-size:14px; font-weight:700; letter-spacing:.02em; color:var(--ink-soft);
+  font-size:14px; font-weight:700; letter-spacing:.02em;
+  color:#a8a39e;
   padding:6px 2px; transition:color .25s;
 }
-.nav__item::after{
-  content:""; position:absolute; left:0; right:100%; bottom:-2px; height:2px;
-  background:var(--crimson); transition:right .3s var(--ease);
-}
-.nav__item:hover{ color:var(--ink); }
-.nav__item:hover::after{ right:30%; }
-.nav__item.is-active{ color:var(--crimson); font-weight:700; }
-.nav__item.is-active::after{ right:0; }
+.nav__item:hover{ color:var(--ink-soft); }
+.nav__item.is-active{ color:var(--crimson); }
 
 /* ===================== 인트로 ===================== */
 .intro{
@@ -446,6 +441,42 @@ body[data-route="board"] .hero-brand{ display:none; }
 }
 .player__close:hover{ background:var(--crimson); }
 
+/* ===================== 준비중 모달 ===================== */
+.coming-soon{
+  position:fixed; inset:0; z-index:80;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(20,12,10,.55);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  animation:coming-soon-fade .25s var(--ease);
+}
+@keyframes coming-soon-fade{ from{ opacity:0; } to{ opacity:1; } }
+.coming-soon__panel{
+  position:relative;
+  min-width:280px; max-width:420px;
+  padding:36px 28px 32px;
+  background:var(--cream);
+  border-radius:14px;
+  box-shadow:0 30px 80px -20px rgba(20,12,10,.55);
+  text-align:center;
+  animation:coming-soon-pop .3s var(--ease);
+}
+@keyframes coming-soon-pop{ from{ opacity:0; transform:translateY(8px) scale(.96); } to{ opacity:1; transform:none; } }
+.coming-soon__close{
+  position:absolute; top:10px; right:12px;
+  width:32px; height:32px; border:none; border-radius:50%;
+  background:transparent; color:var(--ink-soft); font-size:22px; line-height:1;
+  transition:background .2s, color .2s;
+}
+.coming-soon__close:hover{ background:rgba(40,34,32,.08); color:var(--ink); }
+.coming-soon__title{
+  font-size:20px; font-weight:800; color:var(--crimson);
+  letter-spacing:.01em;
+}
+.coming-soon__desc{
+  margin-top:8px; font-size:13px; color:var(--ink-soft); letter-spacing:.02em;
+}
+
 /* ===================== 토스트 ===================== */
 .toast{
   position:fixed; left:50%; bottom:38px; transform:translate(-50%,20px);
@@ -471,6 +502,7 @@ body[data-route="board"] .hero-brand{ display:none; }
 @media (prefers-reduced-motion:reduce){
   *{ animation-duration:.01ms !important; transition-duration:.12s !important; }
 }
+
 
 
 

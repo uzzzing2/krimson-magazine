@@ -21,6 +21,7 @@ export default function Home() {
   const [readerOpen, setReaderOpen] = useState<Magazine | null>(null);
   const [readerProgress, setReaderProgress] = useState("1 / 1");
   const [playerOpen, setPlayerOpen] = useState<Video | null>(null);
+  const [comingSoonOpen, setComingSoonOpen] = useState(false);
 
   // 캐러셀/드래그/인트로 — 명령형 로직은 useEffect 안에서 실행
   useEffect(() => {
@@ -426,10 +427,16 @@ export default function Home() {
       });
     }
 
+    const COMING_SOON_ROUTES = new Set(["about", "notice", "board"]);
     const onNavClick = (e: Event) => {
       e.preventDefault();
       const a = e.currentTarget as HTMLElement;
-      setRoute(a.dataset.route!);
+      const route = a.dataset.route!;
+      if (COMING_SOON_ROUTES.has(route)) {
+        setComingSoonOpen(true);
+        return;
+      }
+      setRoute(route);
     };
     const navEls = $$<HTMLElement>("[data-route]");
     navEls.forEach((a) => a.addEventListener("click", onNavClick));
@@ -460,6 +467,7 @@ export default function Home() {
     /* ---------- ESC 키 ---------- */
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        setComingSoonOpen(false);
         setPlayerOpen((p) => {
           if (p) return null;
           setReaderOpen(null);
@@ -830,7 +838,7 @@ export default function Home() {
     ]);
 
     // 텍스트 로고를 좌측(매거진 섹션 세로 중앙)으로 이동시키기 위한 transform 계산
-    const TIGER_ERASE_DURATION = 500;      // 호랑이 erase 시간 (짧을수록 빠름)
+    const TIGER_ERASE_DURATION = 1200;     // 호랑이 erase 시간 (짧을수록 빠름)
     const TIGER_ERASE_START = 1500;        // erase 시작 시점(ms) — 리빌 진행 중에 컷오버
     const TOPBAR_H = 64;
     const MAG_BOTTOM = 310; // CSS의 body[data-route="home"] .mag bottom과 동기화 (40px 위로)
@@ -925,15 +933,15 @@ export default function Home() {
       // 타임라인
       // text reveal: 150~2450ms (텍스트는 그대로)
       // tiger reveal: 450ms 시작 → 1500ms에서 erase로 컷오버
-      // tiger erase: 1500~2000ms (500ms, reveal 역재생 bleed)
-      // 2100ms: 인트로 bg 페이드 + 호랑이 hide + bootLayout
-      // 2200ms: 텍스트 캔버스 좌측으로 이동 시작
+      // tiger erase: 1500~2700ms (1200ms, reveal 역재생 bleed)
+      // 2800ms: 인트로 bg 페이드 + 호랑이 hide + bootLayout
+      // 2900ms: 텍스트 캔버스 좌측으로 이동 시작
       const T: Array<[number, () => void]> = [
-        [2100, () => {
+        [2800, () => {
           intro.classList.add("text-only");
           bootLayout();
         }],
-        [2200, () => {
+        [2900, () => {
           // 비-home 초기 라우트(예: #about)면 좌측→상단 슬라이드 없이 즉시 헤더에 안착
           const route = document.body.dataset.route || "home";
           applyLogoMove(route !== "home");
@@ -1027,6 +1035,11 @@ export default function Home() {
     if (playerOpen) document.body.classList.add("modal-open");
     else document.body.classList.remove("modal-open");
   }, [playerOpen]);
+
+  useEffect(() => {
+    if (comingSoonOpen) document.body.classList.add("modal-open");
+    else document.body.classList.remove("modal-open");
+  }, [comingSoonOpen]);
 
   return (
     <>
@@ -1207,6 +1220,30 @@ export default function Home() {
               allowFullScreen
             />
           ) : null}
+        </div>
+      </div>
+
+      <div
+        className="coming-soon"
+        id="comingSoon"
+        hidden={!comingSoonOpen}
+        onClick={() => setComingSoonOpen(false)}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="comingSoonTitle"
+      >
+        <div className="coming-soon__panel" onClick={(e) => e.stopPropagation()}>
+          <button
+            className="coming-soon__close"
+            aria-label="닫기"
+            onClick={() => setComingSoonOpen(false)}
+          >
+            ×
+          </button>
+          <div className="coming-soon__title" id="comingSoonTitle">
+            준비 중입니다
+          </div>
+          <div className="coming-soon__desc">곧 만나보실 수 있습니다.</div>
         </div>
       </div>
 
