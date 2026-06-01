@@ -15,9 +15,17 @@ export type Video = {
   dur: string;
   thumb: string;
   ready: boolean;
+  /** "queen" = 크림슨 퀸, "find" = 크림슨 퀸을 찾아서, "upcoming" = 업로드 예정(메인에서만) */
+  list: "queen" | "find" | "upcoming";
 };
 
 export const CHANNEL_URL = "https://www.youtube.com/@crimsonspecies";
+
+// 재생목록
+export const PLAYLIST_QUEEN_URL =
+  "https://www.youtube.com/playlist?list=PL1AE1JOfuZv3B2GXO-zv2fKhq0yXNDYTb";
+export const PLAYLIST_FIND_URL =
+  "https://www.youtube.com/playlist?list=PL1AE1JOfuZv0DTbdMT2TT9-N8Yy4Z18Yq";
 
 export const MAGAZINES: Magazine[] = [
   {
@@ -33,7 +41,7 @@ export const MAGAZINES: Magazine[] = [
     id: "krimson-2026-07",
     title: "월간 크림슨",
     issue: "2026년 7월호 · 예정",
-    cover: "/assets/magazine/cover-02.png",
+    cover: "/assets/magazine-cover/1.png",
     pages: 0,
     ready: false,
   },
@@ -41,7 +49,7 @@ export const MAGAZINES: Magazine[] = [
     id: "krimson-2026-08",
     title: "월간 크림슨",
     issue: "2026년 8월호 · 예정",
-    cover: "/assets/magazine/cover-03.png",
+    cover: "/assets/magazine-cover/2.png",
     pages: 0,
     ready: false,
   },
@@ -49,7 +57,7 @@ export const MAGAZINES: Magazine[] = [
     id: "krimson-2026-09",
     title: "월간 크림슨",
     issue: "2026년 9월호 · 예정",
-    cover: "/assets/magazine/cover-04.png",
+    cover: "/assets/magazine-cover/3.png",
     pages: 0,
     ready: false,
   },
@@ -57,13 +65,14 @@ export const MAGAZINES: Magazine[] = [
     id: "krimson-2026-10",
     title: "월간 크림슨",
     issue: "2026년 10월호 · 예정",
-    cover: "/assets/magazine/cover-05.png",
+    cover: "/assets/magazine-cover/4.png",
     pages: 0,
     ready: false,
   },
 ];
 
-export const VIDEOS: Video[] = [
+// 크림슨 퀸 (상단 메뉴) — 재생목록 PL...YTb
+export const VIDEOS_QUEEN: Video[] = [
   {
     id: "fNGqcb-tgJA",
     ep: "크림슨퀸 ep.1-1",
@@ -71,15 +80,34 @@ export const VIDEOS: Video[] = [
     dur: "1:52",
     thumb: "/assets/youtube/fNGqcb-tgJA.jpg",
     ready: true,
+    list: "queen",
   },
   {
     id: "dXGbtmtrVGw",
     ep: "크림슨퀸 트레일러",
     title: "인류 종말 1000년 후 복원된 그녀의 정체는?",
-    dur: "0:46",
+    dur: "1:15",
     thumb: "/assets/youtube/dXGbtmtrVGw.jpg",
     ready: true,
+    list: "queen",
   },
+];
+
+// 크림슨 퀸을 찾아서 (상단 메뉴) — 재생목록 PL...8Yq
+export const VIDEOS_FIND: Video[] = [
+  {
+    id: "1zJIQss7fhc",
+    ep: "우아한 오지랖의 여왕 EP.1",
+    title: "회사 생활 네 번의 위기를 잘 극복할 수 있었던 이유",
+    dur: "21:21",
+    thumb: "/assets/youtube/1zJIQss7fhc.jpg",
+    ready: true,
+    list: "find",
+  },
+];
+
+// 업로드 예정 — 메인(home) 미리보기에서만 노출
+export const VIDEOS_UPCOMING: Video[] = [
   {
     id: "coming-1",
     ep: "크림슨퀸 ep.1-2",
@@ -87,6 +115,7 @@ export const VIDEOS: Video[] = [
     dur: "",
     thumb: "",
     ready: false,
+    list: "upcoming",
   },
   {
     id: "coming-2",
@@ -95,8 +124,12 @@ export const VIDEOS: Video[] = [
     dur: "",
     thumb: "",
     ready: false,
+    list: "upcoming",
   },
 ];
+
+// DOM 렌더 순서: 크림슨 퀸 → 찾아서 → 업로드 예정 (노출 여부는 라우트별 CSS로 제어)
+export const ALL_VIDEOS: Video[] = [...VIDEOS_QUEEN, ...VIDEOS_FIND, ...VIDEOS_UPCOMING];
 
 export const PAGE_CONTENT: Record<string, { h: string; p: string }> = {
   about: {

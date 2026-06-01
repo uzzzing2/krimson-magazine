@@ -21,10 +21,17 @@
   --shadow:     0 24px 60px -24px rgba(30,18,14,.55);
   --ease:       cubic-bezier(.22,.61,.36,1);
   --topbar-h:   64px;
+  /* 매거진 카드/헤더 로고 치수 — CSS와 JS가 공유하는 단일 소스(반응형은 미디어쿼리에서 덮어씀) */
+  --mag-active-w:   clamp(250px,27vw,360px);
+  --mag-gap:        26px;
+  --header-logo-h:  59px;
+  --header-logo-left: 60px;
 }
 
 *{ box-sizing:border-box; }
 [hidden]{ display:none !important; }
+/* 모바일에서 가로 오버플로가 레이아웃 뷰포트를 팽창시키지 않도록 클립 */
+html{ overflow-x:clip; max-width:100%; }
 html,body{ height:100%; }
 body{
   margin:0;
@@ -58,11 +65,26 @@ body.booted .topbar{ opacity:1; transform:none; }
 /* 로고 자체는 좌측 텍스트 캔버스가 이동해서 표시. 여기는 빈 placeholder로 위치만 유지 */
 .brand{
   display:flex; align-items:center; flex:0 0 auto;
-  width:calc(59px * 1126 / 330); /* ≈ 201px — 원래 로고 폭 */
-  height:59px;
+  width:calc(var(--header-logo-h) * 1126 / 330);
+  height:var(--header-logo-h);
 }
 
 .nav{ display:flex; align-items:center; gap:40px; }
+
+/* 햄버거 버튼 — PC에서는 숨김(미디어쿼리에서 노출) */
+.nav-toggle{
+  display:none;
+  flex-direction:column; justify-content:center; gap:5px;
+  width:42px; height:42px; padding:9px;
+  background:none; border:none; cursor:pointer;
+}
+.nav-toggle span{
+  display:block; height:2px; width:100%; border-radius:2px;
+  background:var(--ink); transition:transform .3s var(--ease), opacity .2s;
+}
+.topbar.nav-open .nav-toggle span:nth-child(1){ transform:translateY(7px) rotate(45deg); }
+.topbar.nav-open .nav-toggle span:nth-child(2){ opacity:0; }
+.topbar.nav-open .nav-toggle span:nth-child(3){ transform:translateY(-7px) rotate(-45deg); }
 .nav__item{
   font-size:14px; font-weight:700; letter-spacing:.02em;
   color:#a8a39e;
@@ -124,6 +146,8 @@ body.booted .topbar{ opacity:1; transform:none; }
   transition:background .2s,color .2s;
 }
 .intro__skip:hover{ background:var(--crimson); color:#fff; border-color:var(--crimson); }
+/* 메인 페이지 진입(booted) 후에는 SKIP 버튼 숨김 */
+body.booted .intro__skip{ display:none; }
 
 /* ===================== 스테이지 ===================== */
 .stage{
@@ -180,6 +204,11 @@ body.booted .topbar{ opacity:1; transform:none; }
 .bg-tiger-right--over-left{
   left:calc(50% - clamp(250px,27vw,360px) * 1.3 - 65px);
 }
+/* 서브 페이지(home 제외)에서는 큰 배경 호랑이 워터마크만 숨김.
+   카드 위 오버레이(--over/--over-left)는 카드 질감으로 유지. */
+body:not([data-route="home"]) .bg-tiger-right:not(.bg-tiger-right--over){
+  display:none;
+}
 
 /* ---------- 매거진 캐러셀 ---------- */
 .mag{
@@ -201,7 +230,7 @@ body.show-mag .mag{ opacity:1; transform:none; }
 }
 .mag__viewport.dragging{ cursor:grabbing; }
 .mag__track{
-  display:flex; align-items:center; gap:26px;
+  display:flex; align-items:center; gap:var(--mag-gap);
   will-change:transform;
   padding:0 50vw;
 }
@@ -210,8 +239,8 @@ body.show-mag .mag{ opacity:1; transform:none; }
   position:relative; flex:0 0 auto;
   --reveal:0;
   /* 비활성: 활성과 동일한 height, width는 활성의 40% */
-  width:calc(clamp(250px,27vw,360px) * 0.4);
-  height:calc(clamp(250px,27vw,360px) * 1684 / 1190);
+  width:calc(var(--mag-active-w) * 0.4);
+  height:calc(var(--mag-active-w) * 1684 / 1190);
   border-radius:6px; overflow:hidden;
   background:var(--tiger-dark);
   box-shadow:0 10px 30px -16px rgba(20,12,10,.6);
@@ -229,7 +258,7 @@ body.show-mag .mag-card{
   transform:translateY(0);
 }
 .mag-card.is-active{
-  width:clamp(250px,27vw,360px);
+  width:var(--mag-active-w);
   box-shadow:var(--shadow);
   filter:none;
 }
@@ -322,7 +351,7 @@ body.show-tube .tube{ opacity:1; transform:none; }
   background-position:center,center;
   opacity:0; transition:opacity .5s var(--ease);
 }
-.tube-card:not(.is-ready) .tube-card__veil{ opacity:1; filter:url(#ink-soft); }
+.tube-card:not(.is-ready) .tube-card__veil{ opacity:1; }
 .tube-card__play{
   position:absolute; inset:0; z-index:3; display:grid; place-items:center;
   opacity:0; transition:opacity .3s;
@@ -363,16 +392,44 @@ body[data-route="home"] .mag__hint{ display:none; }
 body[data-route="magazine"] .hero-brand{ display:none; }
 body[data-route="magazine"] .tube{ display:none; }
 body[data-route="magazine"] .mag{ justify-content:center; padding-left:0; }
-
-body[data-route="youtube"] .hero-brand{ display:none; }
-body[data-route="youtube"] .mag{ display:none; }
-body[data-route="youtube"] .tube{
-  position:absolute; top:calc(var(--topbar-h) + 10px); bottom:auto;
+/* 매거진 라우트는 하단 유튜브 영역(310px)이 없어 카드가 home보다 아래로 내려간다.
+   (구조상 +135px, 단 매거진에만 있는 드래그 힌트가 카드를 ~19px 끌어올려 실측 +116px)
+   호랑이 오버레이도 같은 양만큼 내려 home과 동일한 카드-호랑이 정렬을 유지. */
+body[data-route="magazine"] .bg-tiger-right{
+  margin-top:calc((var(--topbar-h) - 40px) / 2 - 100px + 116px);
 }
-body[data-route="youtube"] .tube__track{ flex-wrap:nowrap; }
-/* 1920 기준 4개: (1920 - 76px 좌우 패딩 - 3*16px gap) / 4 ≈ 449px.
-   작은 해상도에서도 메인보다 확실히 크게 보이도록 최소값을 크게 잡음 */
-body[data-route="youtube"] .tube-card{ width:clamp(360px,23.4vw,460px); }
+
+/* 크림슨 퀸(youtube) · 크림슨 퀸을 찾아서(find) — 목록형(4열 그리드, 행으로 증가) */
+body[data-route="youtube"] .hero-brand,
+body[data-route="find"] .hero-brand{ display:none; }
+body[data-route="youtube"] .mag,
+body[data-route="find"] .mag{ display:none; }
+body[data-route="youtube"] .tube,
+body[data-route="find"] .tube{
+  position:absolute; top:calc(var(--topbar-h) + 10px); bottom:0;
+  display:flex; flex-direction:column;
+}
+/* 뷰포트가 세로 스크롤 — 항목이 늘어나면 행이 아래로 쌓임 */
+body[data-route="youtube"] .tube__viewport,
+body[data-route="find"] .tube__viewport{
+  flex:1 1 auto; overflow-y:auto; overflow-x:hidden;
+  touch-action:pan-y; cursor:default;
+}
+body[data-route="youtube"] .tube__track,
+body[data-route="find"] .tube__track{
+  flex-wrap:wrap; align-content:flex-start;
+  transform:none !important;       /* 캐러셀 translate 무시 */
+}
+/* 4열: (100% - 3*gap) / 4 */
+body[data-route="youtube"] .tube-card,
+body[data-route="find"] .tube-card{ width:calc((100% - 3 * 16px) / 4); }
+
+/* ----- 유튜브 카드 라우트별 노출 -----
+   home    : 크림슨 퀸 + 찾아서 + 업로드 예정 (채널 전체 미리보기)
+   youtube : 크림슨 퀸만        find: 찾아서만        (업로드 예정 숨김) */
+body[data-route="find"]    .tube-card[data-list="queen"]{ display:none; }
+body[data-route="youtube"] .tube-card[data-list="find"]{ display:none; }
+body:not([data-route="home"]) .tube-card[data-list="upcoming"]{ display:none; }
 
 .page-view{
   position:absolute; inset:var(--topbar-h) 0 0 0; z-index:13;
@@ -488,17 +545,100 @@ body[data-route="board"] .hero-brand{ display:none; }
 .toast.show{ opacity:1; transform:translate(-50%,0); }
 
 /* ===================== 반응형 ===================== */
-@media (max-width:880px){
-  .topbar{ padding:0 18px; }
-  .nav{ gap:14px; }
-  .nav__item{ font-size:13px; }
-  .brand img{ height:43px; }
+/* ---- 햄버거 드로어 (태블릿·모바일 공통) ---- */
+@media (max-width:1024px){
   .hero-brand{ display:none !important; }
-  body[data-route="home"] .mag{ padding-left:0; bottom:210px; }
-  .mag-card.is-active{ width:62vw; }
-  .mag-card{ width:calc(62vw * 0.4); height:calc(62vw * 1684/1190); }
-  .tube{ padding:14px 18px 20px; }
+  .nav-toggle{ display:flex; order:2; margin-left:auto; }
+  .topbar{
+    flex-wrap:wrap; align-content:flex-start;
+    height:auto; min-height:var(--topbar-h);
+    padding:0 20px;
+  }
+  .brand{ order:1; }
+  /* 드로어 항목: 닫힘 상태에서는 숨김 */
+  .topbar .nav__item--lead,
+  .topbar .nav{ order:3; width:100%; display:none; }
+  .topbar.nav-open{
+    background:var(--cream);
+    box-shadow:0 18px 44px -18px rgba(20,12,10,.5);
+    padding-bottom:8px;
+  }
+  .topbar.nav-open .nav__item--lead{
+    display:block; width:100%; padding:13px 4px;
+    border-top:1px solid var(--line); font-size:15px;
+  }
+  .topbar.nav-open .nav{
+    display:flex; flex-direction:column; align-items:stretch; gap:0; width:100%;
+  }
+  .topbar.nav-open .nav .nav__item{
+    padding:13px 4px; border-top:1px solid var(--line); font-size:15px;
+  }
+  /* 홈: 좌측 대형 로고 영역 제거 → 캐러셀 중앙 */
+  body[data-route="home"] .mag{ padding-left:0; }
 }
+
+/* ---- 태블릿 (≤1024px) ---- */
+@media (max-width:1024px) and (min-width:641px){
+  :root{
+    --topbar-h:58px;
+    --mag-active-w:42vw;
+    --mag-gap:20px;
+    --header-logo-h:42px;
+    --header-logo-left:20px;
+  }
+  /* 유튜브 상세: 3열 */
+  body[data-route="youtube"] .tube-card,
+  body[data-route="find"] .tube-card{ width:calc((100% - 2 * 16px) / 3); }
+  .tube{ padding:16px 22px 22px; }
+}
+
+/* ---- 모바일 (≤640px) ---- */
+@media (max-width:640px){
+  :root{
+    --topbar-h:52px;
+    --mag-active-w:66vw;
+    --mag-gap:14px;
+    --header-logo-h:30px;
+    --header-logo-left:16px;
+  }
+  .topbar{ padding:0 14px; }
+
+  /* 홈: 하단 유튜브 미리보기 공간 확보 */
+  body[data-route="home"] .mag{
+    height:calc(100vh - var(--topbar-h) - 270px) !important;
+  }
+  body[data-route="home"] .mag__viewport{ height:auto; }
+  .mag__hint{ font-size:11px; letter-spacing:.08em; margin-top:14px; }
+
+  /* 유튜브 섹션 */
+  .tube{ padding:12px 14px 16px; }
+  .tube__title{ font-size:17px; }
+  .tube__more{ font-size:13px; }
+  .tube__divider{ margin:0 12px; }
+  .tube-card{ width:64vw; }   /* 홈 가로 스크롤 카드 */
+
+  /* 유튜브 상세: 2열 */
+  body[data-route="youtube"] .tube-card,
+  body[data-route="find"] .tube-card{ width:calc((100% - 14px) / 2); }
+  body[data-route="youtube"] .tube__track,
+  body[data-route="find"] .tube__track{ gap:14px; }
+  body[data-route="youtube"] .tube__title,
+  body[data-route="find"] .tube__title{ font-size:18px; }
+
+  /* 소개/공지/게시판 */
+  .page-view{ padding:24px 20px; }
+  .page-view__inner h1{ font-size:24px; }
+  .page-view__inner p{ font-size:14px; line-height:1.7; }
+
+  /* 리더/플레이어 */
+  .reader__bar{ height:48px; padding:0 14px; }
+  .reader__title{ font-size:13px; }
+  .player__close{ top:12px; right:12px; width:38px; height:38px; }
+
+  /* 준비중 모달 */
+  .coming-soon__panel{ min-width:0; width:88vw; max-width:360px; }
+}
+
 @media (prefers-reduced-motion:reduce){
   *{ animation-duration:.01ms !important; transition-duration:.12s !important; }
 }

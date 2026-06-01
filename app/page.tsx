@@ -1,9 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CHANNEL_URL, MAGAZINES, PAGE_CONTENT, VIDEOS, type Magazine, type Video } from "@/lib/data";
+import {
+  ALL_VIDEOS,
+  CHANNEL_URL,
+  MAGAZINES,
+  PAGE_CONTENT,
+  PLAYLIST_FIND_URL,
+  PLAYLIST_QUEEN_URL,
+  type Magazine,
+  type Video,
+} from "@/lib/data";
 
-const ROUTES = ["home", "magazine", "youtube", "about", "notice", "board"] as const;
+const ROUTES = ["home", "magazine", "youtube", "find", "about", "notice", "board"] as const;
+
+// 유튜브 섹션 타이틀: 메인(home)=크림슨 종족, 상단 메뉴=크림슨 퀸 / 크림슨 퀸을 찾아서
+const TUBE_TITLE: Record<string, string> = {
+  home: "크림슨 종족",
+  youtube: "크림슨 퀸",
+  find: "크림슨 퀸을 찾아서",
+};
 type Route = (typeof ROUTES)[number];
 
 export default function Home() {
@@ -22,6 +38,8 @@ export default function Home() {
   const [readerProgress, setReaderProgress] = useState("1 / 1");
   const [playerOpen, setPlayerOpen] = useState<Video | null>(null);
   const [comingSoonOpen, setComingSoonOpen] = useState(false);
+  // 유튜브 섹션 타이틀/링크용 현재 라우트
+  const [tubeRoute, setTubeRoute] = useState<"home" | "youtube" | "find">("home");
 
   // 캐러셀/드래그/인트로 — 명령형 로직은 useEffect 안에서 실행
   useEffect(() => {
@@ -55,14 +73,33 @@ export default function Home() {
     let magSafetyTimer: ReturnType<typeof setTimeout> | undefined;
     const magVeils = $$<HTMLElement>(".mag-card__veil", magTrack);
 
+    // 카드 치수: 숨김 프로브(width:var(--mag-active-w))를 실측 → vw 등 단위까지 px로 해석.
+    // CSS 미디어쿼리가 바뀌면 프로브 폭도 자동 갱신되어 CSS와 항상 일치 (반응형 포함, PC 동일).
+    let _magActiveW = 250;
+    let _magGap = 26;
+    const magProbe = document.createElement("div");
+    magProbe.setAttribute("aria-hidden", "true");
+    magProbe.style.cssText =
+      "position:absolute;left:0;top:0;height:0;visibility:hidden;pointer-events:none;width:var(--mag-active-w);";
+    magViewport.appendChild(magProbe);
+    function refreshMagMetrics() {
+      const a = magProbe.getBoundingClientRect().width;
+      if (a > 0) _magActiveW = a;
+      const g = parseFloat(getComputedStyle(magTrack).columnGap);
+      if (Number.isFinite(g) && g >= 0) _magGap = g;
+    }
+    refreshMagMetrics();
+    const magActiveW = () => _magActiveW;
+    const magGap = () => _magGap;
+
     // 매 프레임 호출: 각 카드 중심과 화면 중앙의 거리로 --reveal 연속 계산
     // → 가운데로 다가오는 카드는 점점 펴지고, 가운데를 벗어나는 카드는 점점 접힘
     function syncMagVeils() {
-      const vw = window.innerWidth;
+      const vw = document.documentElement.clientWidth;
       const viewportCenter = vw / 2;
-      const activeW = Math.max(250, Math.min(360, 0.27 * vw));
+      const activeW = magActiveW();
       const inactiveW = activeW * 0.4;
-      const gap = 26;
+      const gap = magGap();
       // 다음 카드 중심까지의 거리 = (활성/2 + gap + 비활성/2)
       const threshold = activeW / 2 + gap + inactiveW / 2;
       for (let i = 0; i < magVeils.length; i++) {
@@ -94,11 +131,11 @@ export default function Home() {
       requestAnimationFrame(() => {
         const vRect = magViewport.getBoundingClientRect();
         // 활성 카드 중심을 window 중앙에 맞추기 위해 트랙 translate 계산
-        const vw = window.innerWidth;
+        const vw = document.documentElement.clientWidth;
         const windowCenter = vw / 2;
-        const activeW = Math.max(250, Math.min(360, 0.27 * vw));
+        const activeW = magActiveW();
         const inactiveW = activeW * 0.4; // 비활성은 활성 폭의 40%
-        const gap = 26;
+        const gap = magGap();
         const padLeft = 0.5 * vw; // .mag__track padding:0 50vw
         let cardLeftInTrack = padLeft;
         for (let i = 0; i < index; i++) cardLeftInTrack += inactiveW + gap;
@@ -114,7 +151,7 @@ export default function Home() {
         const card = cards[index];
         if (!card) return;
         const cRect = card.getBoundingClientRect();
-        const windowCenter = window.innerWidth / 2;
+        const windowCenter = document.documentElement.clientWidth / 2;
         const cardCenter = cRect.left + cRect.width / 2;
         const delta = windowCenter - cardCenter;
         if (Math.abs(delta) > 3) {
@@ -178,11 +215,11 @@ export default function Home() {
     // 트랙 magTranslate를 기준으로 "이론적 카드 중심"이 화면 중앙과 가장 가까운 인덱스 계산
     //   (실측 getBoundingClientRect는 width transition 중 진동할 수 있어 공식 기반으로 안정화)
     function nearestMagIndexByTranslate() {
-      const vw = window.innerWidth;
+      const vw = document.documentElement.clientWidth;
       const windowCenter = vw / 2;
-      const activeW = Math.max(250, Math.min(360, 0.27 * vw));
+      const activeW = magActiveW();
       const inactiveW = activeW * 0.4;
-      const gap = 26;
+      const gap = magGap();
       const padLeft = 0.5 * vw;
       const vRect = magViewport.getBoundingClientRect();
       const cards = magCards();
@@ -204,11 +241,11 @@ export default function Home() {
     //   maxTranslate: 첫 카드(0)가 중앙에 있을 때의 값
     //   minTranslate: 마지막 카드가 중앙에 있을 때의 값
     function magTranslateBounds() {
-      const vw = window.innerWidth;
+      const vw = document.documentElement.clientWidth;
       const windowCenter = vw / 2;
-      const activeW = Math.max(250, Math.min(360, 0.27 * vw));
+      const activeW = magActiveW();
       const inactiveW = activeW * 0.4;
-      const gap = 26;
+      const gap = magGap();
       const padLeft = 0.5 * vw;
       const vRect = magViewport.getBoundingClientRect();
       const cards = magCards();
@@ -249,8 +286,8 @@ export default function Home() {
       wheelSnapTimer = setTimeout(() => {
         const startTrans = wheelStartTranslate as number;
         const totalMove = magTranslate - startTrans; // 음수: forward, 양수: backward
-        const vw = window.innerWidth;
-        const activeW = Math.max(250, Math.min(360, 0.27 * vw));
+        const vw = document.documentElement.clientWidth;
+        const activeW = magActiveW();
         const inactiveW = activeW * 0.4;
         const cardSpacing = inactiveW + 26;
         // 카드 간격의 ADVANCE_BIAS 만큼만 넘어도 다음 카드로 넘어가도록 반올림 bias
@@ -275,7 +312,7 @@ export default function Home() {
       tubeTranslate = Math.max(min, Math.min(max, tubeTranslate));
     }
     function applyTubeTransform(anim: boolean) {
-      tubeTrack.style.transition = anim ? "transform .5s cubic-bezier(.22,.61,.36,1)" : "none";
+      tubeTrack.style.transition = anim ? "transform .55s cubic-bezier(.22,.61,.36,1)" : "none";
       tubeTrack.style.transform = `translateX(${tubeTranslate}px)`;
     }
 
@@ -288,7 +325,7 @@ export default function Home() {
         card = hit?.closest<HTMLElement>(".tube-card") || null;
       }
       if (!card) return;
-      const v = VIDEOS.find((x) => x.id === card.dataset.id);
+      const v = ALL_VIDEOS.find((x) => x.id === card.dataset.id);
       if (v && v.ready) setPlayerOpen(v);
       else toast("다음 에피소드 준비 중입니다");
     };
@@ -303,6 +340,7 @@ export default function Home() {
       getT: () => number,
       setT: (v: number, anim: boolean) => void,
       onEnd: (vel: number) => void,
+      canStart?: () => boolean,
     ) {
       let down = false,
         startX = 0,
@@ -311,6 +349,7 @@ export default function Home() {
         lastV = 0,
         lastTime = 0;
       const onDown = (e: PointerEvent) => {
+        if (canStart && !canStart()) return; // 비활성 라우트(예: 목록형 상세)에서는 드래그 안 함
         down = true;
         dragMoved = false;
         startX = e.clientX;
@@ -369,6 +408,11 @@ export default function Home() {
       },
     );
 
+    // 카드 한 칸 이동 거리(카드폭 + gap 16)
+    function tubeStep() {
+      const first = tubeTrack.querySelector<HTMLElement>(".tube-card");
+      return first ? first.offsetWidth + 16 : 316;
+    }
     makeDraggable(
       tubeViewport,
       () => tubeTranslate,
@@ -376,14 +420,20 @@ export default function Home() {
         tubeTranslate = v;
         applyTubeTransform(false);
       },
+      // 매거진 캐러셀과 동일한 느낌: 한 칸 단위 스냅 + 임계점(0.45) 플릭
       (vel) => {
-        tubeTranslate += vel * 180;
+        const step = tubeStep();
+        let idx = Math.round(-tubeTranslate / step);
+        if (Math.abs(vel) > 0.45) idx += vel < 0 ? 1 : -1;
+        tubeTranslate = -idx * step;
         clampTube();
         applyTubeTransform(true);
       },
+      () => document.body.dataset.route === "home", // 상세(목록형)에서는 캐러셀 드래그 비활성
     );
 
     const onWheel = (e: WheelEvent) => {
+      if (document.body.dataset.route !== "home") return; // 상세는 네이티브 세로 스크롤
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
       tubeTranslate -= e.deltaY;
       clampTube();
@@ -398,7 +448,9 @@ export default function Home() {
       if (r === "home") magIndex = 0;
       document.body.dataset.route = r;
       document.body.classList.toggle("show-mag", r === "home" || r === "magazine");
-      document.body.classList.toggle("show-tube", r === "home" || r === "youtube");
+      document.body.classList.toggle("show-tube", r === "home" || r === "youtube" || r === "find");
+      // 유튜브 섹션 타이틀/링크 갱신 (React 상태)
+      setTubeRoute(r === "youtube" || r === "find" ? r : "home");
       $$<HTMLElement>(".nav__item").forEach((a) =>
         a.classList.toggle("is-active", a.dataset.route === r),
       );
@@ -428,10 +480,23 @@ export default function Home() {
     }
 
     const COMING_SOON_ROUTES = new Set(["about", "notice", "board"]);
+    const topbarEl = $<HTMLElement>("#topbar");
+    const navToggle = $<HTMLButtonElement>("#navToggle");
+    const closeNav = () => {
+      topbarEl?.classList.remove("nav-open");
+      navToggle?.setAttribute("aria-expanded", "false");
+    };
+    const onNavToggle = () => {
+      const open = topbarEl?.classList.toggle("nav-open") ?? false;
+      navToggle?.setAttribute("aria-expanded", String(open));
+    };
+    navToggle?.addEventListener("click", onNavToggle);
+
     const onNavClick = (e: Event) => {
       e.preventDefault();
       const a = e.currentTarget as HTMLElement;
       const route = a.dataset.route!;
+      closeNav(); // 모바일 드로어 닫기
       if (COMING_SOON_ROUTES.has(route)) {
         setComingSoonOpen(true);
         return;
@@ -840,14 +905,19 @@ export default function Home() {
     // 텍스트 로고를 좌측(매거진 섹션 세로 중앙)으로 이동시키기 위한 transform 계산
     const TIGER_ERASE_DURATION = 1200;     // 호랑이 erase 시간 (짧을수록 빠름)
     const TIGER_ERASE_START = 1500;        // erase 시작 시점(ms) — 리빌 진행 중에 컷오버
-    const TOPBAR_H = 64;
+    // 헤더/로고 치수도 CSS 변수에서 읽어 반응형 대응 (PC는 동일 값)
+    const cssRootPx = (name: string, fb: number) => {
+      const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
+      return Number.isFinite(v) ? v : fb;
+    };
+    const TOPBAR_H = () => cssRootPx("--topbar-h", 64);
     const MAG_BOTTOM = 310; // CSS의 body[data-route="home"] .mag bottom과 동기화 (40px 위로)
-    const TEXT_MOVE_SCALE = 1.3;           // 좌측 위치에서 텍스트 로고 확대 비율
-    const HEADER_TEXT_HEIGHT = 59;         // 헤더에서 표시 높이(px) — .brand img height와 일치
-    const HEADER_TEXT_LEFT = 60;           // 헤더에서 텍스트 좌측 여백 — topbar padding과 일치
+    const TEXT_MOVE_SCALE = 1.3;                   // 좌측 위치에서 텍스트 로고 확대 비율
+    const HEADER_TEXT_HEIGHT = () => cssRootPx("--header-logo-h", 59);
+    const HEADER_TEXT_LEFT = () => cssRootPx("--header-logo-left", 60);
     function logoMetrics() {
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
+      const vw = document.documentElement.clientWidth;
+      const vh = document.documentElement.clientHeight;
       const logoW = Math.min(0.85 * Math.min(vw, vh), 0.9 * vw, 960);
       const logoH = (logoW * 1074) / 1126;
       const textH = (logoW * 330) / 1126;
@@ -858,14 +928,14 @@ export default function Home() {
     function computeLogoLeftTransform() {
       const { vw, vh, logoW, logoH, textH, cx, cy } = logoMetrics();
       const S = TEXT_MOVE_SCALE;
-      const activeW = Math.max(250, Math.min(360, 0.27 * vw));
+      const activeW = magActiveW();
       const cardLeft = cx - activeW / 2;
       const canvasW = logoW * S;
       const availableW = cardLeft - 30; // 카드 좌측 30px 마진까지 사용 가능
       // 캔버스 중앙을 가용 공간 중앙(availableW/2)에 정렬
       // canvasW > availableW면 일부가 화면 밖으로 빠지지만, 텍스트 콘텐츠는 캔버스 중앙에 있어 가운데 잘 보임
       const targetTextLeft = availableW / 2 - canvasW / 2;
-      const magCenterY = (TOPBAR_H + (vh - MAG_BOTTOM)) / 2 - 20;
+      const magCenterY = (TOPBAR_H() + (vh - MAG_BOTTOM)) / 2 - 20;
       const dx = targetTextLeft - cx + (logoW * S) / 2;
       const dy = magCenterY - cy + (logoH * S) / 2 - (textH * S) / 2;
       return `translate(${dx}px, ${dy}px) scale(${S})`;
@@ -873,9 +943,9 @@ export default function Home() {
     // 상단 헤더 위치 — 첫번째 매거진(magIndex 0)이 왼쪽으로 빠지면(magIndex !== 0)
     function computeLogoHeaderTransform() {
       const { logoW, logoH, textH, cx, cy } = logoMetrics();
-      const S = HEADER_TEXT_HEIGHT / textH;
-      const targetTextLeft = HEADER_TEXT_LEFT;
-      const targetTextCenterY = TOPBAR_H / 2;
+      const S = HEADER_TEXT_HEIGHT() / textH;
+      const targetTextLeft = HEADER_TEXT_LEFT();
+      const targetTextCenterY = TOPBAR_H() / 2;
       const dx = targetTextLeft - cx + (logoW * S) / 2;
       const dy = targetTextCenterY - cy + (logoH * S) / 2 - (textH * S) / 2;
       return `translate(${dx}px, ${dy}px) scale(${S})`;
@@ -883,7 +953,9 @@ export default function Home() {
     function applyLogoMove(skipAnim = false) {
       // 좌측 큰 로고는 home + magIndex=0 일 때만. 그 외(다른 라우트 or 캐러셀 이동)는 헤더
       const route = document.body.dataset.route || "home";
-      const atLeft = route === "home" && magIndex === 0;
+      // 태블릿·모바일(≤1024)에서는 좌측 대형 로고 대신 항상 헤더에 작게 고정
+      const atLeft =
+        document.documentElement.clientWidth > 1024 && route === "home" && magIndex === 0;
       // 로고가 헤더에 있는 상태를 클래스로 표시 → 텍스트 캔버스 클릭으로 home 이동 가능하게
       intro.classList.toggle("logo-at-header", !atLeft);
       const transform = atLeft ? computeLogoLeftTransform() : computeLogoHeaderTransform();
@@ -951,10 +1023,25 @@ export default function Home() {
       T.forEach(([t, fn]) => introTimers.push(setTimeout(fn, t)));
     }
     function skipIntro() {
+      if (booted) return; // 이미 인트로가 끝났으면 무시
+      // 진행 중인 리빌/타이머 모두 정리
       revealHandles.forEach((h) => h.cancel());
-      intro.classList.add("is-hidden");
+      introTimers.forEach((t) => clearTimeout(t));
+      // 인트로의 "최종 상태"로 즉시 점프 — 텍스트 로고는 완성해서 그대로 두고
+      // 호랑이는 지워진 상태로. (인트로를 숨기지 않으므로 로고가 사라지지 않음)
+      preload.then(([, textImg]) => {
+        const tctx = textCanvas.getContext("2d");
+        if (tctx) {
+          tctx.clearRect(0, 0, textCanvas.width, textCanvas.height);
+          tctx.drawImage(textImg, 0, 0, textCanvas.width, textCanvas.height);
+        }
+        const gctx = tigerCanvas.getContext("2d");
+        if (gctx) gctx.clearRect(0, 0, tigerCanvas.width, tigerCanvas.height);
+      });
+      intro.classList.add("play", "text-only", "text-moved");
       bootLayout();
-      introTimers.push(setTimeout(() => (intro.style.display = "none"), 500));
+      // 로고를 최종 위치(좌측/헤더)로 애니메이션 없이 즉시 배치
+      applyLogoMove(true);
     }
     const skipBtn = $<HTMLButtonElement>("#introSkip");
     skipBtn?.addEventListener("click", skipIntro);
@@ -970,6 +1057,7 @@ export default function Home() {
     const onResize = () => {
       clearTimeout(rT);
       rT = setTimeout(() => {
+        refreshMagMetrics(); // 브레이크포인트 변경 시 카드 치수 갱신
         magTranslate = 0;
         applyMagTransform(false);
         centerMag(magIndex, false);
@@ -996,6 +1084,7 @@ export default function Home() {
       tubeViewport.removeEventListener("click", onTubeTrackClick);
       tubeViewport.removeEventListener("wheel", onWheel);
       navEls.forEach((a) => a.removeEventListener("click", onNavClick));
+      navToggle?.removeEventListener("click", onNavToggle);
       window.removeEventListener("hashchange", onHash);
       document.removeEventListener("keydown", onKey);
       window.removeEventListener("pointermove", onPointerMove);
@@ -1052,6 +1141,9 @@ export default function Home() {
         <a className="nav__item nav__item--lead" data-route="youtube" href="#youtube">
           크림슨 퀸
         </a>
+        <a className="nav__item nav__item--lead" data-route="find" href="#find">
+          크림슨 퀸을 찾아서
+        </a>
         <nav className="nav" id="nav">
           <a className="nav__item" data-route="about" href="#about">
             소개
@@ -1063,6 +1155,10 @@ export default function Home() {
             자유게시판
           </a>
         </nav>
+        {/* 모바일/태블릿 햄버거 (PC에서는 display:none) */}
+        <button className="nav-toggle" id="navToggle" aria-label="메뉴" aria-expanded="false" type="button">
+          <span /><span /><span />
+        </button>
       </header>
 
       <section className="intro" id="intro" ref={introRef}>
@@ -1119,27 +1215,34 @@ export default function Home() {
           <img src="/assets/tiger.png" alt="" />
         </div>
 
-        <section className="tube" id="tube" aria-label="크림슨 퀸">
+        <section className="tube" id="tube" aria-label="유튜브 콘텐츠">
           <div className="tube__head">
-            <h2 className="tube__title">크림슨 퀸</h2>
+            <h2 className="tube__title">{TUBE_TITLE[tubeRoute]}</h2>
             <span className="tube__divider" aria-hidden />
             <a
               className="tube__more"
               id="channelLink"
-              href={CHANNEL_URL}
+              href={
+                tubeRoute === "find"
+                  ? PLAYLIST_FIND_URL
+                  : tubeRoute === "youtube"
+                    ? PLAYLIST_QUEEN_URL
+                    : CHANNEL_URL
+              }
               target="_blank"
               rel="noopener"
             >
-              채널 바로가기 &nbsp;&rarr;
+              {tubeRoute === "home" ? "채널 바로가기" : "재생목록 전체보기"} &nbsp;&rarr;
             </a>
           </div>
           <div className="tube__viewport" id="tubeViewport" ref={tubeViewportRef}>
             <div className="tube__track" id="tubeTrack" ref={tubeTrackRef}>
-              {VIDEOS.map((v) => (
+              {ALL_VIDEOS.map((v) => (
                 <article
                   key={v.id}
                   className={"tube-card" + (v.ready ? " is-ready" : "")}
                   data-id={v.id}
+                  data-list={v.list}
                 >
                   <div className="tube-card__thumbwrap">
                     {v.ready ? (
