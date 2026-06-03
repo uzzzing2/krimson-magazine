@@ -22,7 +22,9 @@
   --ease:       cubic-bezier(.22,.61,.36,1);
   --topbar-h:   64px;
   /* 매거진 카드/헤더 로고 치수 — CSS와 JS가 공유하는 단일 소스(반응형은 미디어쿼리에서 덮어씀) */
-  --mag-active-w:   clamp(250px,27vw,360px);
+  /* 가로 기준 clamp 와 동시에, 세로(뷰포트 높이)로도 캡 → 화면이 낮을 때(맥북13" 등) 카드가
+     영역을 넘어 상단바와 겹치는 문제 방지. 카드비율 1684/1190≈1.415. 1080p+에선 가로 clamp가 이김(불변). */
+  --mag-active-w:   min(clamp(250px,27vw,360px), (100vh - var(--topbar-h) - 360px) / 1.415);
   --mag-gap:        26px;
   --header-logo-h:  59px;
   --header-logo-left: 60px;
@@ -550,7 +552,7 @@ body[data-route="board"] .hero-brand{ display:none; }
   .hero-brand{ display:none !important; }
   .nav-toggle{ display:flex; order:2; margin-left:auto; }
   .topbar{
-    flex-wrap:wrap; align-content:flex-start;
+    flex-wrap:wrap; align-content:center; align-items:center;
     height:auto; min-height:var(--topbar-h);
     padding:0 20px;
   }
@@ -581,7 +583,7 @@ body[data-route="board"] .hero-brand{ display:none; }
 @media (max-width:1024px) and (min-width:641px){
   :root{
     --topbar-h:58px;
-    --mag-active-w:42vw;
+    --mag-active-w:min(42vw, (100vh - var(--topbar-h) - 360px) / 1.415);
     --mag-gap:20px;
     --header-logo-h:42px;
     --header-logo-left:20px;
@@ -595,20 +597,25 @@ body[data-route="board"] .hero-brand{ display:none; }
 /* ---- 모바일 (≤640px) ---- */
 @media (max-width:640px){
   :root{
-    --topbar-h:52px;
-    --mag-active-w:66vw;
+    --topbar-h:58px;
+    --mag-active-w:min(66vw, (100dvh - var(--topbar-h) - 330px) / 1.415);
     --mag-gap:14px;
-    --header-logo-h:30px;
+    --header-logo-h:45px;   /* 기존 30 → 1.5배 */
     --header-logo-left:16px;
   }
   .topbar{ padding:0 14px; }
 
-  /* 홈: 하단 유튜브 미리보기 공간 확보 */
+  /* 모바일 브라우저 주소창 때문에 하단이 잘리지 않도록 동적 뷰포트 높이(dvh) 사용 */
+  .stage{ height:100vh; height:100dvh; }
+  .mag{ height:calc(100dvh - var(--topbar-h) - 40px); }   /* 매거진 라우트 */
+
+  /* 홈: 컨텐츠를 위로 — 하단 유튜브 미리보기 공간 확보 + 바닥 여백 */
   body[data-route="home"] .mag{
-    height:calc(100vh - var(--topbar-h) - 270px) !important;
+    height:calc(100dvh - var(--topbar-h) - 296px) !important;
   }
+  body[data-route="home"] .tube{ bottom:max(18px, env(safe-area-inset-bottom)); }
   body[data-route="home"] .mag__viewport{ height:auto; }
-  .mag__hint{ font-size:11px; letter-spacing:.08em; margin-top:14px; }
+  .mag__hint{ font-size:11px; letter-spacing:.08em; margin-top:12px; }
 
   /* 유튜브 섹션 */
   .tube{ padding:12px 14px 16px; }
