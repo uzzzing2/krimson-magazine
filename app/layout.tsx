@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { BG_IMAGE } from "@/lib/data";
 
 export const metadata: Metadata = {
   title: "monthly Krimson — Korea University Alumni Magazine",
@@ -119,6 +120,16 @@ export default function RootLayout({
 
         <div className="tiger-bg" aria-hidden="true" />
         <div className="paper-grain" aria-hidden="true" />
+
+        {/* 어드민 등록 풀스크린 배경 이미지 — BG_IMAGE 가 설정되면 fixed로 깔림.
+            null일 때는 body cream 단색 배경. */}
+        {BG_IMAGE ? (
+          <div
+            className="bg-fullscreen"
+            aria-hidden="true"
+            style={{ backgroundImage: `url(${BG_IMAGE})` }}
+          />
+        ) : null}
 
         {children}
       </body>

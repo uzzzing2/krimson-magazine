@@ -3,6 +3,16 @@
 /* =========================================================
    monthly Krimson  —  styles
    ========================================================= */
+
+/* 커스텀 폰트 — 로고 텍스트(.brand__ko, splash 캔버스)와 메인 슬로건(.m-sec__slogan) 용 */
+@font-face{
+  font-family: "GriunPolSensibility";
+  src: url("/assets/Griun_PolSensibility-Rg.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* 물감 리빌용 애니메이션 가능한 커스텀 프로퍼티 */
 @property --reveal{
   syntax:"<number>";
@@ -72,6 +82,10 @@ body.booted .topbar{ opacity:1; transform:none; }
 }
 
 .nav{ display:flex; align-items:center; gap:40px; }
+
+/* 헤더 한글 로고 (모바일에서만 노출 — PC는 텍스트 캔버스가 자리를 차지) */
+.brand__ko{ display:none; }
+body.nav-locked{ overflow:hidden !important; }
 
 /* 햄버거 버튼 — PC에서는 숨김(미디어쿼리에서 노출) */
 .nav-toggle{
@@ -156,60 +170,21 @@ body.booted .intro__skip{ display:none; }
   position:relative; z-index:10;
   height:100vh; width:100%;
   padding-top:var(--topbar-h);
-  /* stage가 z:10으로 자체 stacking context를 만들기 때문에 body cream이
-     자식의 mix-blend-mode 백드롭에 보이지 않음. cream을 stage에 깔아
-     오버레이의 lighten 블렌드가 정상 동작하도록 함. */
-  background:var(--cream);
+  /* 배경은 body 의 cream 단색 또는 .bg-fullscreen 이미지에 위임 → transparent */
+  background:transparent;
 }
 
 /* hero-brand: 인트로 텍스트 캔버스가 좌측으로 이동해 대신함 */
 .hero-brand{ display:none; }
 
-/* 우측 백그라운드 호랑이 — 접힌 카드 4장 영역 중앙에 걸치게 */
-.bg-tiger-right{
-  position:absolute;
-  /* 좌우: 활성카드 우측 끝 + gap(26) + (4장+gap×3)/2 = 1.3*activeW + 65 → 4장 그룹의 가로 중앙 */
-  left:calc(50% + clamp(250px,27vw,360px) * 1.3 + 65px);
-  /* 상하: mag 세로중앙(50vh + 12px)에서 100px 위로 */
-  top:50%;
-  margin-top:calc((var(--topbar-h) - 40px) / 2 - 100px);
-  transform:translate(-50%, -50%);
-  /* 가로폭: 4장 그룹 폭(1.6*activeW + 78)의 1.3배 → 살짝 더 크게, 4장에 다 걸침 */
-  width:calc(clamp(250px,27vw,360px) * 2.08 + 101px);
-  aspect-ratio:1126 / 739;
-  opacity:.9;
-  pointer-events:none; z-index:1;
-}
-.bg-tiger-right img{
-  width:100%; height:100%; object-fit:contain; display:block;
-  mix-blend-mode:multiply;
-}
-/* 카드 위 오버레이 변형 — "배경 있는 이미지" 시뮬레이션 + 흑백반전 + lighten 블렌드.
-   1) background:#fff → 호랑이 PNG의 투명 영역과 헤일로 픽셀이 흰색으로 흡수됨(헤일로 자연 제거).
-   2) filter: invert(1) grayscale(1) → 흰 배경은 검정으로, 어두운 호랑이 strokes는 밝은 회색으로 변환.
-   3) mix-blend-mode: lighten → 검정은 어떤 backdrop보다도 어두우니 어디서도 invisible,
-      밝은 회색 호랑이는 cream(밝음)보다는 어두워 cream이 이김(BG 호랑이 보존),
-      dark veil(42)보다는 밝아 veil 위에서만 떠오름(카드 영역에만 옅게 비침).
-   * stage에 cream backdrop을 깔아둔 덕에 lighten 블렌드가 정상 동작. */
-.bg-tiger-right--over{
-  z-index:3;
-  background:#fff;
-  filter:invert(1) grayscale(1);
-  mix-blend-mode:lighten;
-  opacity:.1;
-}
-.bg-tiger-right--over img{
-  /* wrapper에서 모든 효과를 처리하므로 img는 추가 필터/블렌드 없음 */
-}
-/* 좌측 미러 변형 — left 좌표만 부호를 뒤집어 활성카드 좌측의 접힌 4장 그룹 중앙에 배치.
-   opacity 등 나머지 효과는 우측 오버레이와 동일(상속). */
-.bg-tiger-right--over-left{
-  left:calc(50% - clamp(250px,27vw,360px) * 1.3 - 65px);
-}
-/* 서브 페이지(home 제외)에서는 큰 배경 호랑이 워터마크만 숨김.
-   카드 위 오버레이(--over/--over-left)는 카드 질감으로 유지. */
-body:not([data-route="home"]) .bg-tiger-right:not(.bg-tiger-right--over){
-  display:none;
+/* 어드민 등록 풀스크린 BG 이미지 — layout.tsx 가 inline backgroundImage 주입 */
+.bg-fullscreen{
+  position:fixed; inset:0;
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+  z-index:0;
+  pointer-events:none;
 }
 
 /* ---------- 매거진 캐러셀 ---------- */
@@ -222,6 +197,14 @@ body:not([data-route="home"]) .bg-tiger-right:not(.bg-tiger-right--over){
   opacity:0; transform:translateY(40px);
   transition:opacity .9s var(--ease), transform .9s var(--ease);
 }
+/* 매거진 페이지 타이틀 — magazine 라우트에서만 노출 (home에서는 m-home이 대신) */
+.mag__title{
+  display:none;
+  margin:0 0 20px;
+  font-size:22px; font-weight:900; letter-spacing:.01em;
+  color:var(--crimson);
+}
+body[data-route="magazine"] .mag__title{ display:block; }
 body.show-mag .mag{ opacity:1; transform:none; }
 
 .mag__viewport{
@@ -314,7 +297,7 @@ body.show-tube .tube{ opacity:1; transform:none; }
   margin-bottom:12px;
 }
 .tube__title{
-  margin:0; font-size:20px; font-weight:800; color:var(--crimson);
+  margin:0; font-size:22px; font-weight:900; color:var(--crimson);
   letter-spacing:.01em;
 }
 .tube__divider{
@@ -394,13 +377,6 @@ body[data-route="home"] .mag__hint{ display:none; }
 body[data-route="magazine"] .hero-brand{ display:none; }
 body[data-route="magazine"] .tube{ display:none; }
 body[data-route="magazine"] .mag{ justify-content:center; padding-left:0; }
-/* 매거진 라우트는 하단 유튜브 영역(310px)이 없어 카드가 home보다 아래로 내려간다.
-   (구조상 +135px, 단 매거진에만 있는 드래그 힌트가 카드를 ~19px 끌어올려 실측 +116px)
-   호랑이 오버레이도 같은 양만큼 내려 home과 동일한 카드-호랑이 정렬을 유지. */
-body[data-route="magazine"] .bg-tiger-right{
-  margin-top:calc((var(--topbar-h) - 40px) / 2 - 100px + 116px);
-}
-
 /* 크림슨 퀸(youtube) · 크림슨 퀸을 찾아서(find) — 목록형(4열 그리드, 행으로 증가) */
 body[data-route="youtube"] .hero-brand,
 body[data-route="find"] .hero-brand{ display:none; }
@@ -435,23 +411,35 @@ body:not([data-route="home"]) .tube-card[data-list="upcoming"]{ display:none; }
 
 .page-view{
   position:absolute; inset:var(--topbar-h) 0 0 0; z-index:13;
-  display:grid; place-items:center; padding:40px;
+  display:grid; place-items:center; padding:40px 20px;
   background:var(--cream);
+  overflow-y:auto;
 }
-.page-view__inner{ max-width:680px; text-align:center; }
+.page-view__inner{
+  max-width:680px; width:100%; text-align:center;
+  display:flex; flex-direction:column; align-items:center; gap:18px;
+}
 .page-view__inner h1{
-  font-size:30px; color:var(--crimson); margin:0 0 14px;
+  font-size:22px; font-weight:900; color:var(--crimson); margin:0;
+  letter-spacing:.01em;
 }
-.page-view__inner p{ color:var(--ink-soft); line-height:1.8; font-size:15px; }
-body[data-route="about"] .mag,
-body[data-route="about"] .tube,
-body[data-route="about"] .hero-brand,
-body[data-route="notice"] .mag,
-body[data-route="notice"] .tube,
-body[data-route="notice"] .hero-brand,
-body[data-route="board"] .mag,
-body[data-route="board"] .tube,
-body[data-route="board"] .hero-brand{ display:none; }
+.page-view__inner p{ color:var(--ink-soft); line-height:1.8; font-size:15px; margin:0; }
+.page-view__image{
+  display:block;
+  width:100%; max-width:560px; height:auto;
+  border-radius:8px;
+}
+/* 자료 없음 — image 도 p 도 없을 때 */
+.page-view__empty{
+  color:var(--ink-soft); font-size:15px; letter-spacing:.02em; opacity:.8;
+}
+/* 단일 페이지 라우트(wonder/regret/untold/sponsor)는 캐러셀/유튜브 스트립/모바일 홈 비표시 */
+body[data-route="wonder"] .mag, body[data-route="wonder"] .tube, body[data-route="wonder"] .m-home,
+body[data-route="regret"] .mag, body[data-route="regret"] .tube, body[data-route="regret"] .m-home,
+body[data-route="untold"] .mag, body[data-route="untold"] .tube, body[data-route="untold"] .m-home,
+body[data-route="sponsor"] .mag, body[data-route="sponsor"] .tube, body[data-route="sponsor"] .m-home{
+  display:none !important;
+}
 
 /* ===================== 매거진 리더 ===================== */
 .reader{
@@ -475,6 +463,19 @@ body[data-route="board"] .hero-brand{ display:none; }
   flex:1; overflow-y:auto; overflow-x:hidden; scroll-behavior:smooth;
   display:flex; flex-direction:column; align-items:center;
   padding:26px 16px 60px; gap:18px;
+}
+/* PDF 뷰어 — 매거진에 pdf 경로가 설정되면 iframe으로 렌더링 (브라우저 내장 뷰어) */
+.reader__pdf{
+  flex:1; width:100%; height:100%;
+  border:0; display:block;
+  background:#1c1715;
+}
+/* 자료 없음 — pdf 도 page 이미지도 없을 때 */
+.reader__empty{
+  flex:1; display:grid; place-items:center;
+  color:#b6a89f;
+  font-size:15px; letter-spacing:.02em;
+  padding:40px 20px; text-align:center;
 }
 .reader__scroll img{
   /* 한 장이 한 화면에 다 보이도록 가로/세로 모두 cap — 비율 유지 */
@@ -546,40 +547,281 @@ body[data-route="board"] .hero-brand{ display:none; }
 }
 .toast.show{ opacity:1; transform:translate(-50%,0); }
 
-/* ===================== 반응형 ===================== */
-/* ---- 햄버거 드로어 (태블릿·모바일 공통) ---- */
-@media (max-width:1024px){
-  .hero-brand{ display:none !important; }
-  .nav-toggle{ display:flex; order:2; margin-left:auto; }
-  .topbar{
-    flex-wrap:wrap; align-content:center; align-items:center;
-    height:auto; min-height:var(--topbar-h);
-    padding:0 20px;
-  }
-  .brand{ order:1; }
-  /* 드로어 항목: 닫힘 상태에서는 숨김 */
-  .topbar .nav__item--lead,
-  .topbar .nav{ order:3; width:100%; display:none; }
-  .topbar.nav-open{
-    background:var(--cream);
-    box-shadow:0 18px 44px -18px rgba(20,12,10,.5);
-    padding-bottom:8px;
-  }
-  .topbar.nav-open .nav__item--lead{
-    display:block; width:100%; padding:13px 4px;
-    border-top:1px solid var(--line); font-size:15px;
-  }
-  .topbar.nav-open .nav{
-    display:flex; flex-direction:column; align-items:stretch; gap:0; width:100%;
-  }
-  .topbar.nav-open .nav .nav__item{
-    padding:13px 4px; border-top:1px solid var(--line); font-size:15px;
-  }
-  /* 홈: 좌측 대형 로고 영역 제거 → 캐러셀 중앙 */
-  body[data-route="home"] .mag{ padding-left:0; }
+/* ===================== 모바일 홈 (.m-home) =====================
+   모바일에서만 노출되는 세로 스크롤 메인 (3 섹션 구성).
+   PC/태블릿에서는 display:none — 기존 캐러셀/유튜브 스트립이 그대로 동작. */
+.m-home{ display:none; }
+.m-sec{ display:flex; flex-direction:column; }
+/* 섹션 헤더: 타이틀 + 가로선(컨텐츠 width 끝까지 확장) */
+.m-sec__head{
+  display:flex; align-items:center; gap:14px;
+  margin:0 0 14px;
+}
+.m-sec__title{
+  margin:0; flex:0 0 auto;
+  font-size:22px; font-weight:800; letter-spacing:.01em;
+  color:var(--crimson);
+}
+.m-sec__rule{
+  flex:1 1 auto;
+  height:1px;
+  background:#B2B2B2;
+}
+/* 섹션 하단 슬로건 — 컬러는 크림슨종족 카드 배경(tiger-dark)으로 통일.
+   line1/line2 각각 한 줄씩 (어드민에서 두 줄 분리 입력). */
+.m-sec__slogan{
+  margin:32px 0 0;
+  font-family:"GriunPolSensibility","Pretendard","Pretendard Variable",sans-serif;
+  font-size:26px; font-weight:400; letter-spacing:.005em; line-height:1.4;
+  color:var(--tiger-dark);
+  text-align:center;
+}
+.m-sec__slogan span{ display:block; }
+.m-mag{
+  position:relative; width:100%;
+  border-radius:8px; overflow:hidden;
+  background:var(--tiger-dark);
+  box-shadow:var(--shadow);
+  /* 50% 투명도 흰색 테두리 — 어두운 표지 위 미세한 윤곽 */
+  border:1px solid rgba(255,255,255,.5);
+  cursor:zoom-in;
+}
+/* 매거진 위 hover: 돋보기 아이콘 + 살짝 어두워지는 오버레이 */
+.m-mag::after{
+  content:"";
+  position:absolute; inset:0; z-index:4;
+  background:
+    url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") no-repeat center / 64px,
+    rgba(20,12,10,.32);
+  opacity:0; pointer-events:none;
+  transition:opacity .25s var(--ease);
+}
+.m-mag:hover::after{ opacity:1; }
+.m-mag__cover{
+  display:block; width:100%; height:auto;
+  aspect-ratio:1190 / 1684; object-fit:cover;
+}
+.m-mag__meta{
+  position:absolute; left:0; right:0; bottom:0;
+  padding:14px 14px 16px;
+  background:linear-gradient(transparent, rgba(18,10,9,.85));
+  color:#f4efe7;
+  display:flex; align-items:flex-end; justify-content:space-between; gap:10px;
+}
+.m-mag__issue{ font-size:13px; letter-spacing:.02em; color:#e6c9c2; }
+.m-mag__tag{
+  font-size:11px; letter-spacing:.06em;
+  padding:4px 10px; border-radius:999px;
+  background:var(--crimson);
+}
+.m-mag:not(.is-ready) .m-mag__tag{ background:rgba(255,255,255,.18); }
+.m-tube-list{
+  display:grid;
+  grid-template-columns:repeat(2, 1fr);
+  gap:12px;
+}
+.m-tube-card{
+  position:relative; display:flex; flex-direction:column;
+  background:var(--tiger-dark);
+  border-radius:8px; overflow:hidden;
+  box-shadow:0 10px 26px -18px rgba(20,12,10,.6);
+}
+.m-tube-card.is-ready{ cursor:pointer; }
+.m-tube-card__thumbwrap{ position:relative; aspect-ratio:16/9; overflow:hidden; }
+.m-tube-card__thumb{
+  width:100%; height:100%; object-fit:cover; display:block;
+}
+.m-tube-card__thumb--blank{
+  background-color:var(--tiger-dark);
+  background-image:linear-gradient(rgba(30,16,14,.25),rgba(30,16,14,.5)),
+    url("/assets/tiger-dark.png");
+  background-size:cover; background-position:center;
+}
+.m-tube-card__play{
+  position:absolute; inset:0; display:grid; place-items:center;
+  opacity:.85; pointer-events:none;
+}
+.m-tube-card:not(.is-ready) .m-tube-card__play{ opacity:0; }
+.m-tube-card__play span{
+  width:48px; height:48px; border-radius:50%;
+  background:rgba(125,21,24,.88); display:grid; place-items:center;
+  box-shadow:0 8px 24px rgba(0,0,0,.4);
+}
+.m-tube-card__play span::after{
+  content:""; border-style:solid; border-width:8px 0 8px 13px;
+  border-color:transparent transparent transparent #fff; margin-left:3px;
+}
+.m-tube-card__dur{
+  position:absolute; right:8px; bottom:8px;
+  background:rgba(10,6,5,.82); color:#fff;
+  font-size:11px; padding:2px 7px; border-radius:4px;
+}
+.m-tube-card__meta{ padding:10px 11px 12px; }
+.m-tube-card__ep{ font-size:11px; color:var(--crimson-2); font-weight:700; }
+.m-tube-card__title{
+  font-size:13px; color:#f0ece4; margin-top:4px; line-height:1.35;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+/* 단일 카드(섹션 3, 차마 못다한 이야기)는 풀폭으로 더 큰 제목 */
+.m-sec > .m-tube-card .m-tube-card__title{ font-size:15px; line-height:1.4; }
+.m-sec > .m-tube-card .m-tube-card__meta{ padding:12px 14px 14px; }
+
+/* ===================== 푸터 ===================== */
+.m-footer{
+  display:flex; justify-content:center; align-items:center;
+  gap:22px;
+  padding:28px 0 8px;
+  margin-top:8px;
+  border-top:1px solid #B2B2B2;
+}
+.m-footer__link{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:44px; height:44px;
+  color:var(--ink-soft);
+  border-radius:50%;
+  transition:color .22s var(--ease), background .22s var(--ease);
+}
+.m-footer__link:hover{
+  color:var(--crimson);
+  background:rgba(125,21,24,.06);
+}
+.m-footer__link svg{ width:22px; height:22px; display:block; }
+
+/* ===================== "모바일 스타일" 전역 적용 =====================
+   PC도 모바일과 같은 구성(3 섹션 세로 스크롤 + 헤더 한글 로고 + 햄버거)을
+   사용하도록 — 과거 PC 전용 캐러셀/inline nav/텍스트 캔버스 이동 애니메이션 비활성. */
+
+/* 스플래시: 한글 타이틀 캔버스 + 호랑이 캔버스 (둘 다 브러시 리빌/erase 적용) */
+.intro__logo{
+  width:min(92vmin, 94vw, 720px);
+  aspect-ratio:auto;
+  display:flex; flex-direction:column; align-items:center;
+  gap:6px;
+}
+.intro__text,
+.intro__tiger{
+  position:static; transform:none;
+  width:100%; height:auto;
+  display:block;
+}
+.intro__text{
+  aspect-ratio:1126 / 330;
+  width:78%;
+  max-width:540px;
+}
+.intro__tiger{ aspect-ratio:1126 / 739; }
+/* 스플래시 종료 후 두 캔버스 모두 비표시 (배경도 transparent 되어 잔상 없음) */
+.intro.text-only .intro__tiger,
+.intro.text-only .intro__text{ display:none; }
+
+/* 헤더: 한글 텍스트 로고 + 항상 노출되는 햄버거 */
+.hero-brand{ display:none !important; }
+.brand{
+  order:1;
+  width:auto; height:var(--topbar-h);
+  display:flex; align-items:center; padding:0 2px;
+  flex:0 0 auto;
+}
+.brand__ko{
+  display:inline-block;
+  font-family:"GriunPolSensibility","Pretendard","Pretendard Variable",sans-serif;
+  font-size:36px; font-weight:400; letter-spacing:.01em;
+  color:var(--ink); line-height:1;
+}
+.topbar{
+  flex-wrap:wrap; align-content:center; align-items:center;
+  height:auto; min-height:var(--topbar-h);
+  padding:0 28px;
+  background:rgba(235,235,230,.88);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+}
+.nav-toggle{ display:flex; order:2; margin-left:auto; }
+/* 인라인 메뉴 항목들 — 닫힘 상태에서는 숨김 (햄버거 드로어로 통합) */
+.topbar .nav__item--lead,
+.topbar .nav{ order:3; width:100%; display:none; }
+
+/* ---- 햄버거 풀스크린 드로어 ---- */
+.topbar.nav-open{
+  position:fixed; left:0; right:0; top:0;
+  height:100dvh;
+  align-content:flex-start;
+  background:var(--cream);
+  box-shadow:none;
+  padding:0 28px 24px;
+  overflow-y:auto;
+}
+.topbar.nav-open .brand{ height:var(--topbar-h); }
+.topbar.nav-open .nav-toggle{ height:var(--topbar-h); }
+.topbar.nav-open .nav__item--lead{
+  display:block; width:100%;
+}
+.topbar.nav-open .nav{
+  display:flex; flex-direction:column; align-items:stretch;
+  gap:0; width:100%;
+}
+.topbar.nav-open .nav__item--lead,
+.topbar.nav-open .nav .nav__item{
+  font-size:22px; font-weight:700;
+  padding:24px 4px; text-align:center;
+  border-top:1px solid var(--line);
+  color:var(--ink);
+}
+.topbar.nav-open .nav__item.is-active{ color:var(--crimson); }
+
+/* ---- 홈: 세로 스크롤 m-home 레이아웃 (전 뷰포트) ---- */
+body[data-route="home"]:not(.modal-open):not(.nav-locked){
+  overflow:auto; overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+}
+body[data-route="home"] .stage{
+  height:auto; min-height:100dvh;
+  padding-top:var(--topbar-h);
+  background:transparent;
+}
+/* 홈에서는 캐러셀/유튜브 스트립 비표시 */
+body[data-route="home"] .mag,
+body[data-route="home"] .tube{ display:none !important; }
+/* m-home: 전 뷰포트에서 표시 */
+body[data-route="home"] .m-home{
+  display:flex; flex-direction:column;
+  gap:64px;
+  padding:24px 20px 72px;
+  padding-bottom:max(72px, env(safe-area-inset-bottom));
+  max-width:680px;
+  width:100%;
+  margin:0 auto;
+  position:relative;
+  z-index:5;
 }
 
-/* ---- 태블릿 (≤1024px) ---- */
+/* ===================== 반응형 ===================== */
+/* ---- PC 홈: 첫 화면에 매거진 섹션 전체 + 크림슨 종족 일부가 보이도록 매거진 표지 크기 제한 ---- */
+@media (min-width:1025px){
+  .topbar{ padding:0 48px; }
+  .topbar.nav-open{ padding:0 48px 32px; }
+  .brand__ko{ font-size:36px; }
+  body[data-route="home"] .m-home{
+    padding:20px 24px 72px;
+    gap:48px;
+  }
+  .m-sec__title{ font-size:22px; margin-bottom:12px; }
+  .m-sec__slogan{ font-size:32px; margin-top:36px; }
+  .m-tube-list{ gap:14px; }
+  /* 매거진 표지: 뷰포트 높이에 맞춰 폭을 동적 제한
+     (커진 슬로건 + 슬로건 margin-top 36 + 늘어난 gap 반영).
+     계산식 — 가용 세로 ≈ 100dvh − (헤더 64 + m-home padding-top 20
+       + 섹션1 타이틀 ~34 + 섹션1 슬로건+여백 ~72 + 섹션 간격 48
+       + 섹션2 타이틀 ~34 + 카드 peek ~32) ≈ 100dvh − 304
+     표지비 1190:1684(0.707) → max-width = 가용세로 × 0.707.
+     너무 작아지지 않게 200px floor, 너무 커지지 않게 390px ceil. */
+  body[data-route="home"] .m-mag{
+    max-width:clamp(200px, calc((100dvh - 304px) * 1190 / 1684), 390px);
+    margin-inline:auto;
+  }
+}
+
+/* ---- 태블릿 (641~1024px) ---- */
 @media (max-width:1024px) and (min-width:641px){
   :root{
     --topbar-h:58px;
@@ -588,7 +830,8 @@ body[data-route="board"] .hero-brand{ display:none; }
     --header-logo-h:42px;
     --header-logo-left:20px;
   }
-  /* 유튜브 상세: 3열 */
+  body[data-route="home"] .m-home{ max-width:560px; padding:24px 22px 60px; }
+  /* 유튜브 상세: 3열 (캐러셀 라우트에서는 그대로) */
   body[data-route="youtube"] .tube-card,
   body[data-route="find"] .tube-card{ width:calc((100% - 2 * 16px) / 3); }
   .tube{ padding:16px 22px 22px; }
@@ -600,31 +843,32 @@ body[data-route="board"] .hero-brand{ display:none; }
     --topbar-h:58px;
     --mag-active-w:min(66vw, (100dvh - var(--topbar-h) - 330px) / 1.415);
     --mag-gap:14px;
-    --header-logo-h:45px;   /* 기존 30 → 1.5배 */
+    --header-logo-h:45px;
     --header-logo-left:16px;
   }
   .topbar{ padding:0 14px; }
+  .topbar.nav-open{ padding:0 14px 24px; }
+  .brand__ko{ font-size:30px; }
 
-  /* 모바일 브라우저 주소창 때문에 하단이 잘리지 않도록 동적 뷰포트 높이(dvh) 사용 */
+  /* 매거진(다른 라우트)용 — 동적 뷰포트 높이 */
   .stage{ height:100vh; height:100dvh; }
-  .mag{ height:calc(100dvh - var(--topbar-h) - 40px); }   /* 매거진 라우트 */
+  .mag{ height:calc(100dvh - var(--topbar-h) - 40px); }
 
-  /* 홈: 컨텐츠를 위로 — 하단 유튜브 미리보기 공간 확보 + 바닥 여백 */
-  body[data-route="home"] .mag{
-    height:calc(100dvh - var(--topbar-h) - 296px) !important;
+  /* 모바일 홈: m-home 풀폭 */
+  body[data-route="home"] .m-home{
+    padding:18px 14px 40px;
+    padding-bottom:max(40px, env(safe-area-inset-bottom));
+    max-width:none;
+    gap:32px;
   }
-  body[data-route="home"] .tube{ bottom:max(18px, env(safe-area-inset-bottom)); }
-  body[data-route="home"] .mag__viewport{ height:auto; }
-  .mag__hint{ font-size:11px; letter-spacing:.08em; margin-top:12px; }
 
-  /* 유튜브 섹션 */
+  /* 유튜브 섹션 (다른 라우트용) */
   .tube{ padding:12px 14px 16px; }
   .tube__title{ font-size:17px; }
   .tube__more{ font-size:13px; }
   .tube__divider{ margin:0 12px; }
-  .tube-card{ width:64vw; }   /* 홈 가로 스크롤 카드 */
+  .tube-card{ width:64vw; }
 
-  /* 유튜브 상세: 2열 */
   body[data-route="youtube"] .tube-card,
   body[data-route="find"] .tube-card{ width:calc((100% - 14px) / 2); }
   body[data-route="youtube"] .tube__track,
@@ -644,6 +888,11 @@ body[data-route="board"] .hero-brand{ display:none; }
 
   /* 준비중 모달 */
   .coming-soon__panel{ min-width:0; width:88vw; max-width:360px; }
+
+  .topbar.nav-open .nav__item--lead,
+  .topbar.nav-open .nav .nav__item{
+    font-size:20px; padding:22px 4px;
+  }
 }
 
 @media (prefers-reduced-motion:reduce){
@@ -661,3 +910,8 @@ body[data-route="board"] .hero-brand{ display:none; }
 
 
 
+
+/* trigger recompile */
+
+
+/* nudge 1780558699 */
