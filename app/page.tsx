@@ -7,6 +7,8 @@ import {
   CHANNEL_URL,
   CONTACT_EMAIL,
   INSTAGRAM_URL,
+  LATEST_MAGAZINE,
+  LATEST_READY_INDEX,
   MAGAZINES,
   PAGE_CONTENT,
   PLAYLIST_FIND_URL,
@@ -79,7 +81,7 @@ export default function Home() {
     toastTimerRef.current = setTimeout(() => el.classList.remove("show"), 2200);
   };
 
-  const latestMagazine = MAGAZINES[0];
+  const latestMagazine = LATEST_MAGAZINE;
   const latestQueenVideos = VIDEOS_QUEEN.slice(0, 2);
   const untoldVideoAsVideo: Video | null = UNTOLD_VIDEO
     ? {
@@ -122,7 +124,9 @@ export default function Home() {
 
     /* ---------- 매거진 캐러셀 ---------- */
     const magCards = () => $$<HTMLElement>(".mag-card", magTrack);
-    let magIndex = 0;
+    // 캐러셀 시작 위치 — 최신 발행본(LATEST_READY_INDEX) 을 중앙에 두고
+    // 이전 호는 왼쪽, 커밍순(ready:false)은 오른쪽으로 자연 배치
+    let magIndex = LATEST_READY_INDEX;
     let magTranslate = 0;
     let magSafetyTimer: ReturnType<typeof setTimeout> | undefined;
     const magVeils = $$<HTMLElement>(".mag-card__veil", magTrack);
@@ -500,7 +504,7 @@ export default function Home() {
     function setRoute(route: string, push = true) {
       const r = (ROUTES.includes(route as Route) ? route : "home") as Route;
       // 메인(home)으로 가면 첫번째 매거진으로 리셋 — 로고 클릭 시 "메인 화면"으로 복귀
-      if (r === "home") magIndex = 0;
+      if (r === "home") magIndex = LATEST_READY_INDEX;
       document.body.dataset.route = r;
       document.body.classList.toggle("show-mag", r === "home" || r === "magazine");
       document.body.classList.toggle("show-tube", r === "home" || r === "youtube" || r === "find");
@@ -645,11 +649,12 @@ export default function Home() {
       // 카드 등장 staggered delay: 중앙(활성 index 0)부터 가장자리로 차례대로 올라옴
       const initialCards = magCards();
       initialCards.forEach((card, i) => {
-        const distance = Math.abs(i - 0);
+        // 중앙(최신 발행본) 부터 가장자리로 staggered 등장
+        const distance = Math.abs(i - LATEST_READY_INDEX);
         card.style.setProperty("--stagger-delay", `${distance * 90}ms`);
       });
       setRoute((location.hash || "#home").slice(1), false);
-      requestAnimationFrame(() => centerMag(0, false));
+      requestAnimationFrame(() => centerMag(LATEST_READY_INDEX, false));
     }
 
     /* ---------- 워터컬러 리빌 (soft dab + 거친 streak + wet bleed + edge 농축) ---------- */
@@ -1081,7 +1086,7 @@ export default function Home() {
     window.addEventListener("resize", onResize);
 
     /* ---------- 초기 정렬 후 인트로 ---------- */
-    centerMag(0, false);
+    centerMag(LATEST_READY_INDEX, false);
     clampTube();
     runIntro();
 
@@ -1216,11 +1221,12 @@ export default function Home() {
                 >
                   <img className="mag-card__cover" src={m.cover} alt={`${m.title} ${m.issue}`} />
                   <div className="mag-card__veil" />
-                  <div className="mag-card__meta">
-                    <div className="mag-card__issue">{m.issue}</div>
-                    <div className="mag-card__title">{m.title}</div>
-                    <span className="mag-card__tag">{m.ready ? "지금 읽기" : "준비 중"}</span>
-                  </div>
+                  {/* 커밍순(ready:false)은 커버만 노출 — 메타 영역 생략 */}
+                  {m.ready ? (
+                    <div className="mag-card__meta">
+                      <div className="mag-card__issue">{m.issue}</div>
+                    </div>
+                  ) : null}
                 </article>
               ))}
             </div>

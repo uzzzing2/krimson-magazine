@@ -93,6 +93,16 @@ export const MAGAZINES: Magazine[] = [
   },
 ];
 
+/** 가장 최신 발행된 매거진(ready=true 중 마지막)의 인덱스.
+ *  배열 순서: [오래된 발행본, ..., 최신 발행본(center), 커밍순...]
+ *  새 호가 추가될 때마다 ready: true 항목이 늘어나면서 LATEST 가 자동 갱신 → 캐러셀의 중앙도 자동 이동.
+ *  발행본이 하나도 없으면 0. */
+export const LATEST_READY_INDEX = MAGAZINES.reduce(
+  (latest, m, i) => (m.ready ? i : latest),
+  0,
+);
+export const LATEST_MAGAZINE = MAGAZINES[LATEST_READY_INDEX] ?? MAGAZINES[0];
+
 // 크림슨 퀸 (상단 메뉴) — 재생목록 PL...YTb
 export const VIDEOS_QUEEN: Video[] = [
   {
