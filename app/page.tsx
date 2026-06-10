@@ -3,22 +3,47 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ALL_VIDEOS,
+  BG_IMAGE,
   CHANNEL_URL,
+  CONTACT_EMAIL,
+  INSTAGRAM_URL,
+  LATEST_MAGAZINE,
+  LATEST_READY_INDEX,
   MAGAZINES,
   PAGE_CONTENT,
   PLAYLIST_FIND_URL,
   PLAYLIST_QUEEN_URL,
+  SECTION_SLOGANS,
+  UNTOLD_VIDEO,
+  VIDEOS_QUEEN,
   type Magazine,
   type Video,
 } from "@/lib/data";
 
-const ROUTES = ["home", "magazine", "youtube", "find", "about", "notice", "board"] as const;
+// 메뉴 7개 구조:
+// 1 wonder    "우리가 궁금해?"        - 이미지 페이지
+// 2 regret    "안 보면 후회할걸"      - 준비중 (임시)
+// 3 magazine  "월간 크림슨"           - 기존 매거진 캐러셀
+// 4 youtube   "소셜크림슨퀸"          - 기존 크림슨 퀸 비디오 그리드
+// 5 find      "크림슨퀸을 찾아서"     - 기존 찾아서 비디오 그리드
+// 6 untold    "차마 못다 한 이야기"   - 준비중 (임시)
+// 7 sponsor   "후원 및 광고 문의"     - 이미지 페이지
+const ROUTES = [
+  "home",
+  "wonder",
+  "regret",
+  "magazine",
+  "youtube",
+  "find",
+  "untold",
+  "sponsor",
+] as const;
 
-// 유튜브 섹션 타이틀: 메인(home)=크림슨 종족, 상단 메뉴=크림슨 퀸 / 크림슨 퀸을 찾아서
+// 유튜브 섹션 타이틀: 메인(home)=크림슨 종족, 상단 메뉴=소셜크림슨퀸 / 크림슨퀸을 찾아서
 const TUBE_TITLE: Record<string, string> = {
   home: "크림슨 종족",
-  youtube: "크림슨 퀸",
-  find: "크림슨 퀸을 찾아서",
+  youtube: "소셜크림슨퀸",
+  find: "크림슨퀸을 찾아서",
 };
 type Route = (typeof ROUTES)[number];
 
@@ -40,6 +65,37 @@ export default function Home() {
   const [comingSoonOpen, setComingSoonOpen] = useState(false);
   // 유튜브 섹션 타이틀/링크용 현재 라우트
   const [tubeRoute, setTubeRoute] = useState<"home" | "youtube" | "find">("home");
+  // 단일 페이지(PAGE_CONTENT) 렌더링용 — wonder/regret/untold/sponsor
+  const [pageContent, setPageContent] = useState<
+    (typeof PAGE_CONTENT)[string] | null
+  >(null);
+
+  // 모바일 m-home 섹션에서 호출하는 공용 toast (useEffect 외부에서도 사용 가능)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const showToast = (msg: string) => {
+    const el = toastRef.current;
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add("show");
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => el.classList.remove("show"), 2200);
+  };
+
+  const latestMagazine = LATEST_MAGAZINE;
+  const latestQueenVideos = VIDEOS_QUEEN.slice(0, 2);
+  const untoldVideoAsVideo: Video | null = UNTOLD_VIDEO
+    ? {
+        id: UNTOLD_VIDEO.id,
+        ep: UNTOLD_VIDEO.ep ?? "차마 못다한 이야기",
+        title: UNTOLD_VIDEO.title,
+        dur: UNTOLD_VIDEO.dur ?? "",
+        thumb:
+          UNTOLD_VIDEO.thumb ??
+          `https://i.ytimg.com/vi/${UNTOLD_VIDEO.id}/hqdefault.jpg`,
+        ready: true,
+        list: "queen",
+      }
+    : null;
 
   // 캐러셀/드래그/인트로 — 명령형 로직은 useEffect 안에서 실행
   useEffect(() => {
@@ -68,7 +124,9 @@ export default function Home() {
 
     /* ---------- 매거진 캐러셀 ---------- */
     const magCards = () => $$<HTMLElement>(".mag-card", magTrack);
-    let magIndex = 0;
+    // 캐러셀 시작 위치 — 최신 발행본(LATEST_READY_INDEX) 을 중앙에 두고
+    // 이전 호는 왼쪽, 커밍순(ready:false)은 오른쪽으로 자연 배치
+    let magIndex = LATEST_READY_INDEX;
     let magTranslate = 0;
     let magSafetyTimer: ReturnType<typeof setTimeout> | undefined;
     const magVeils = $$<HTMLElement>(".mag-card__veil", magTrack);
@@ -181,7 +239,8 @@ export default function Home() {
     function openActiveMagazine() {
       const m = MAGAZINES[magIndex];
       if (!m) return;
-      if (m.ready && m.pages > 0) setReaderOpen(m);
+      // ready 이면 reader 오픈 — 자료(pdf/이미지)가 없으면 reader 내부에 empty state 표시
+      if (m.ready) setReaderOpen(m);
       else toast(`${m.issue} — 준비 중입니다`);
     }
 
@@ -445,7 +504,7 @@ export default function Home() {
     function setRoute(route: string, push = true) {
       const r = (ROUTES.includes(route as Route) ? route : "home") as Route;
       // 메인(home)으로 가면 첫번째 매거진으로 리셋 — 로고 클릭 시 "메인 화면"으로 복귀
-      if (r === "home") magIndex = 0;
+      if (r === "home") magIndex = LATEST_READY_INDEX;
       document.body.dataset.route = r;
       document.body.classList.toggle("show-mag", r === "home" || r === "magazine");
       document.body.classList.toggle("show-tube", r === "home" || r === "youtube" || r === "find");
@@ -454,14 +513,8 @@ export default function Home() {
       $$<HTMLElement>(".nav__item").forEach((a) =>
         a.classList.toggle("is-active", a.dataset.route === r),
       );
-      const pageView = $<HTMLElement>("#pageView");
-      const pageInner = $<HTMLElement>("#pageViewInner");
-      if (PAGE_CONTENT[r] && pageView && pageInner) {
-        pageInner.innerHTML = `<h1>${PAGE_CONTENT[r].h}</h1><p>${PAGE_CONTENT[r].p}</p>`;
-        pageView.hidden = false;
-      } else if (pageView) {
-        pageView.hidden = true;
-      }
+      // 단일 페이지 콘텐츠는 React 상태로 (image/p 렌더 지원)
+      setPageContent(PAGE_CONTENT[r] ?? null);
       if (push && location.hash !== "#" + r) {
         history.replaceState(null, "", "#" + r);
       }
@@ -479,16 +532,17 @@ export default function Home() {
       });
     }
 
-    const COMING_SOON_ROUTES = new Set(["about", "notice", "board"]);
     const topbarEl = $<HTMLElement>("#topbar");
     const navToggle = $<HTMLButtonElement>("#navToggle");
     const closeNav = () => {
       topbarEl?.classList.remove("nav-open");
       navToggle?.setAttribute("aria-expanded", "false");
+      document.body.classList.remove("nav-locked");
     };
     const onNavToggle = () => {
       const open = topbarEl?.classList.toggle("nav-open") ?? false;
       navToggle?.setAttribute("aria-expanded", String(open));
+      document.body.classList.toggle("nav-locked", open);
     };
     navToggle?.addEventListener("click", onNavToggle);
 
@@ -497,10 +551,6 @@ export default function Home() {
       const a = e.currentTarget as HTMLElement;
       const route = a.dataset.route!;
       closeNav(); // 모바일 드로어 닫기
-      if (COMING_SOON_ROUTES.has(route)) {
-        setComingSoonOpen(true);
-        return;
-      }
       setRoute(route);
     };
     const navEls = $$<HTMLElement>("[data-route]");
@@ -599,11 +649,12 @@ export default function Home() {
       // 카드 등장 staggered delay: 중앙(활성 index 0)부터 가장자리로 차례대로 올라옴
       const initialCards = magCards();
       initialCards.forEach((card, i) => {
-        const distance = Math.abs(i - 0);
+        // 중앙(최신 발행본) 부터 가장자리로 staggered 등장
+        const distance = Math.abs(i - LATEST_READY_INDEX);
         card.style.setProperty("--stagger-delay", `${distance * 90}ms`);
       });
       setRoute((location.hash || "#home").slice(1), false);
-      requestAnimationFrame(() => centerMag(0, false));
+      requestAnimationFrame(() => centerMag(LATEST_READY_INDEX, false));
     }
 
     /* ---------- 워터컬러 리빌 (soft dab + 거친 streak + wet bleed + edge 농축) ---------- */
@@ -663,7 +714,7 @@ export default function Home() {
 
     function runBrushReveal(
       canvas: HTMLCanvasElement,
-      src: HTMLImageElement,
+      src: HTMLImageElement | HTMLCanvasElement,
       duration: number,
       mode: "reveal" | "erase" = "reveal",
     ): { cancel: () => void } {
@@ -897,92 +948,67 @@ export default function Home() {
       };
     }
 
+    // 한글 타이틀을 커스텀 폰트(GriunPolSensibility)로 렌더링한 캔버스를 만들어 brush reveal 소스로 사용.
+    // 폰트는 globals.css 의 @font-face 로 로드 — document.fonts.load 로 사전 보장.
+    function buildTitleSource(W: number, H: number, text: string, color: string) {
+      const c = document.createElement("canvas");
+      c.width = W; c.height = H;
+      const ctx = c.getContext("2d")!;
+      // 가용 폭 90%를 넘지 않도록 폰트 사이즈 자동 조정 (한글은 거의 정사각)
+      let fs = Math.floor(H * 0.88);
+      const fontFamily =
+        '"GriunPolSensibility","Pretendard","Pretendard Variable",-apple-system,sans-serif';
+      ctx.font = `400 ${fs}px ${fontFamily}`;
+      while (ctx.measureText(text).width > W * 0.92 && fs > 24) {
+        fs -= 4;
+        ctx.font = `400 ${fs}px ${fontFamily}`;
+      }
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = color;
+      ctx.fillText(text, W / 2, H / 2);
+      return c;
+    }
+
     const preload = Promise.all([
       loadImage("/assets/tiger.png"),
-      loadImage("/assets/textlogo.png"),
+      // GriunPolSensibility 로딩 보장 — 실패해도 fallback 폰트로 계속 진행
+      document.fonts?.load?.("400 200px GriunPolSensibility").catch(() => null) ??
+        Promise.resolve(),
     ]);
 
-    // 텍스트 로고를 좌측(매거진 섹션 세로 중앙)으로 이동시키기 위한 transform 계산
     const TIGER_ERASE_DURATION = 1200;     // 호랑이 erase 시간 (짧을수록 빠름)
     const TIGER_ERASE_START = 1500;        // erase 시작 시점(ms) — 리빌 진행 중에 컷오버
-    // 헤더/로고 치수도 CSS 변수에서 읽어 반응형 대응 (PC는 동일 값)
-    const cssRootPx = (name: string, fb: number) => {
-      const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
-      return Number.isFinite(v) ? v : fb;
-    };
-    const TOPBAR_H = () => cssRootPx("--topbar-h", 64);
-    const MAG_BOTTOM = 310; // CSS의 body[data-route="home"] .mag bottom과 동기화 (40px 위로)
-    const TEXT_MOVE_SCALE = 1.3;                   // 좌측 위치에서 텍스트 로고 확대 비율
-    const HEADER_TEXT_HEIGHT = () => cssRootPx("--header-logo-h", 59);
-    const HEADER_TEXT_LEFT = () => cssRootPx("--header-logo-left", 60);
-    function logoMetrics() {
-      const vw = document.documentElement.clientWidth;
-      const vh = document.documentElement.clientHeight;
-      const logoW = Math.min(0.85 * Math.min(vw, vh), 0.9 * vw, 960);
-      const logoH = (logoW * 1074) / 1126;
-      const textH = (logoW * 330) / 1126;
-      return { vw, vh, logoW, logoH, textH, cx: vw / 2, cy: vh / 2 };
-    }
-    // 좌측(매거진 섹션 세로 중앙) 위치 — magIndex === 0
-    // 좌측 가용 공간(0 ~ cardLeft-30)의 중앙에 캔버스를 배치 → 텍스트가 안 잘림
-    function computeLogoLeftTransform() {
-      const { vw, vh, logoW, logoH, textH, cx, cy } = logoMetrics();
-      const S = TEXT_MOVE_SCALE;
-      const activeW = magActiveW();
-      const cardLeft = cx - activeW / 2;
-      const canvasW = logoW * S;
-      const availableW = cardLeft - 30; // 카드 좌측 30px 마진까지 사용 가능
-      // 캔버스 중앙을 가용 공간 중앙(availableW/2)에 정렬
-      // canvasW > availableW면 일부가 화면 밖으로 빠지지만, 텍스트 콘텐츠는 캔버스 중앙에 있어 가운데 잘 보임
-      const targetTextLeft = availableW / 2 - canvasW / 2;
-      const magCenterY = (TOPBAR_H() + (vh - MAG_BOTTOM)) / 2 - 20;
-      const dx = targetTextLeft - cx + (logoW * S) / 2;
-      const dy = magCenterY - cy + (logoH * S) / 2 - (textH * S) / 2;
-      return `translate(${dx}px, ${dy}px) scale(${S})`;
-    }
-    // 상단 헤더 위치 — 첫번째 매거진(magIndex 0)이 왼쪽으로 빠지면(magIndex !== 0)
-    function computeLogoHeaderTransform() {
-      const { logoW, logoH, textH, cx, cy } = logoMetrics();
-      const S = HEADER_TEXT_HEIGHT() / textH;
-      const targetTextLeft = HEADER_TEXT_LEFT();
-      const targetTextCenterY = TOPBAR_H() / 2;
-      const dx = targetTextLeft - cx + (logoW * S) / 2;
-      const dy = targetTextCenterY - cy + (logoH * S) / 2 - (textH * S) / 2;
-      return `translate(${dx}px, ${dy}px) scale(${S})`;
-    }
-    function applyLogoMove(skipAnim = false) {
-      // 좌측 큰 로고는 home + magIndex=0 일 때만. 그 외(다른 라우트 or 캐러셀 이동)는 헤더
-      const route = document.body.dataset.route || "home";
-      // 태블릿·모바일(≤1024)에서는 좌측 대형 로고 대신 항상 헤더에 작게 고정
-      const atLeft =
-        document.documentElement.clientWidth > 1024 && route === "home" && magIndex === 0;
-      // 로고가 헤더에 있는 상태를 클래스로 표시 → 텍스트 캔버스 클릭으로 home 이동 가능하게
-      intro.classList.toggle("logo-at-header", !atLeft);
-      const transform = atLeft ? computeLogoLeftTransform() : computeLogoHeaderTransform();
-      const logoEl = intro.querySelector(".intro__logo") as HTMLElement | null;
-      if (skipAnim && logoEl) {
-        // transition 잠시 꺼서 즉시 적용
-        logoEl.style.transition = "none";
-        intro.style.setProperty("--logo-move", transform);
-        void logoEl.offsetWidth; // force reflow
-        requestAnimationFrame(() => {
-          logoEl.style.transition = "";
-        });
-      } else {
-        intro.style.setProperty("--logo-move", transform);
-      }
+    // 타이틀 리빌은 호랑이(2300ms)보다 빠르게 — TIGER_ERASE_START(1500ms) 전에 완전히 노출되도록
+    // 150ms 시작 + 1150ms 리빌 = 1300ms 완성 → 1500ms erase 시작까지 200ms 완전 노출 유지
+    const TITLE_REVEAL_DURATION = 1150;
+    // 텍스트 캔버스는 전체 뷰포트에서 display:none. 헤더의 한글 로고가 대체.
+    // 위치 계산은 더 이상 필요 없음 — logo-at-header 클래스만 유지해
+    // 기존 의존 코드(클릭 핸들러 등)와 호환.
+    function applyLogoMove(_skipAnim = false) {
+      void _skipAnim;
+      intro.classList.add("logo-at-header");
     }
 
     let tigerRevealHandle: { cancel: () => void } | null = null;
+    let titleRevealHandle: { cancel: () => void } | null = null;
 
     const introTimers: Array<ReturnType<typeof setTimeout>> = [];
     function runIntro() {
       intro.classList.add("play");
-      preload.then(([tigerImg, textImg]) => {
-        // 텍스트 리빌
+      preload.then(([tigerImg]) => {
+        // 한글 타이틀 캔버스 (브러시 리빌 src 용)
+        const titleSrc = buildTitleSource(
+          textCanvas.width,
+          textCanvas.height,
+          "월간 크림슨",
+          "#7d1518",
+        );
+        // 타이틀 리빌 — 150ms 시작, 1150ms 동안 — TIGER_ERASE_START(1500ms) 전에 완전히 노출
         introTimers.push(
           setTimeout(() => {
-            revealHandles.push(runBrushReveal(textCanvas, textImg, REVEAL_DURATION));
+            titleRevealHandle = runBrushReveal(textCanvas, titleSrc, TITLE_REVEAL_DURATION);
+            revealHandles.push(titleRevealHandle);
           }, 150),
         );
         // 호랑이 리빌
@@ -992,33 +1018,32 @@ export default function Home() {
             revealHandles.push(tigerRevealHandle);
           }, 450),
         );
-        // 호랑이 reverse erase (리빌 진행 중에 컷오버: 더 빠르게)
+        // 호랑이 + 타이틀 reverse erase (리빌 진행 중 컷오버)
         introTimers.push(
           setTimeout(() => {
             if (tigerRevealHandle) tigerRevealHandle.cancel();
             revealHandles.push(
               runBrushReveal(tigerCanvas, tigerImg, TIGER_ERASE_DURATION, "erase"),
             );
+            if (titleRevealHandle) titleRevealHandle.cancel();
+            revealHandles.push(
+              runBrushReveal(textCanvas, titleSrc, TIGER_ERASE_DURATION, "erase"),
+            );
           }, TIGER_ERASE_START),
         );
       });
-      // 타임라인
-      // text reveal: 150~2450ms (텍스트는 그대로)
-      // tiger reveal: 450ms 시작 → 1500ms에서 erase로 컷오버
-      // tiger erase: 1500~2700ms (1200ms, reveal 역재생 bleed)
-      // 2800ms: 인트로 bg 페이드 + 호랑이 hide + bootLayout
-      // 2900ms: 텍스트 캔버스 좌측으로 이동 시작
+      // 타임라인 (타이틀+호랑이 둘 다 리빌→erase 후 부팅)
+      // title reveal: 150ms 시작
+      // tiger reveal: 450ms 시작 → 1500ms에서 둘 다 erase로 컷오버
+      // erase:  1500~2700ms (1200ms, reveal 역재생 bleed)
+      // 2800ms: 인트로 bg 페이드 + 캔버스들 hide + bootLayout
+      // 2820ms: 헤더 한글 로고 정상화(text-moved 클래스로 컨테이너 transform 적용)
       const T: Array<[number, () => void]> = [
         [2800, () => {
           intro.classList.add("text-only");
           bootLayout();
         }],
-        [2900, () => {
-          // 비-home 초기 라우트(예: #about)면 좌측→상단 슬라이드 없이 즉시 헤더에 안착
-          const route = document.body.dataset.route || "home";
-          applyLogoMove(route !== "home");
-          intro.classList.add("text-moved");
-        }],
+        [2820, () => intro.classList.add("text-moved")],
       ];
       T.forEach(([t, fn]) => introTimers.push(setTimeout(fn, t)));
     }
@@ -1027,20 +1052,11 @@ export default function Home() {
       // 진행 중인 리빌/타이머 모두 정리
       revealHandles.forEach((h) => h.cancel());
       introTimers.forEach((t) => clearTimeout(t));
-      // 인트로의 "최종 상태"로 즉시 점프 — 텍스트 로고는 완성해서 그대로 두고
-      // 호랑이는 지워진 상태로. (인트로를 숨기지 않으므로 로고가 사라지지 않음)
-      preload.then(([, textImg]) => {
-        const tctx = textCanvas.getContext("2d");
-        if (tctx) {
-          tctx.clearRect(0, 0, textCanvas.width, textCanvas.height);
-          tctx.drawImage(textImg, 0, 0, textCanvas.width, textCanvas.height);
-        }
-        const gctx = tigerCanvas.getContext("2d");
-        if (gctx) gctx.clearRect(0, 0, tigerCanvas.width, tigerCanvas.height);
-      });
+      // 인트로의 "최종 상태"로 즉시 점프 — 호랑이는 지워진 상태로.
+      const gctx = tigerCanvas.getContext("2d");
+      if (gctx) gctx.clearRect(0, 0, tigerCanvas.width, tigerCanvas.height);
       intro.classList.add("play", "text-only", "text-moved");
       bootLayout();
-      // 로고를 최종 위치(좌측/헤더)로 애니메이션 없이 즉시 배치
       applyLogoMove(true);
     }
     const skipBtn = $<HTMLButtonElement>("#introSkip");
@@ -1070,7 +1086,7 @@ export default function Home() {
     window.addEventListener("resize", onResize);
 
     /* ---------- 초기 정렬 후 인트로 ---------- */
-    centerMag(0, false);
+    centerMag(LATEST_READY_INDEX, false);
     clampTube();
     runIntro();
 
@@ -1133,38 +1149,54 @@ export default function Home() {
   return (
     <>
       <header className="topbar" id="topbar">
-        {/* 로고 자체는 좌측 텍스트 캔버스가 이동해서 차지, 여기는 영역(클릭 가능 area)만 유지 */}
-        <a className="brand" data-route="home" href="#home" aria-label="monthly Krimson 홈" />
-        <a className="nav__item nav__item--lead" data-route="magazine" href="#magazine">
-          매거진
-        </a>
-        <a className="nav__item nav__item--lead" data-route="youtube" href="#youtube">
-          크림슨 퀸
-        </a>
-        <a className="nav__item nav__item--lead" data-route="find" href="#find">
-          크림슨 퀸을 찾아서
+        <a className="brand" data-route="home" href="#home" aria-label="monthly Krimson 홈">
+          <span className="brand__ko">월간 크림슨</span>
         </a>
         <nav className="nav" id="nav">
-          <a className="nav__item" data-route="about" href="#about">
-            소개
+          <a className="nav__item" data-route="wonder" href="#wonder">
+            우리가 궁금해?
           </a>
-          <a className="nav__item" data-route="notice" href="#notice">
-            공지사항
+          <a className="nav__item" data-route="regret" href="#regret">
+            안 보면 후회할걸
           </a>
-          <a className="nav__item" data-route="board" href="#board">
-            자유게시판
+          <a className="nav__item" data-route="magazine" href="#magazine">
+            월간 크림슨
+          </a>
+          <a className="nav__item" data-route="youtube" href="#youtube">
+            소셜크림슨퀸
+          </a>
+          <a className="nav__item" data-route="find" href="#find">
+            크림슨퀸을 찾아서
+          </a>
+          <a className="nav__item" data-route="untold" href="#untold">
+            차마 못다 한 이야기
+          </a>
+          <a className="nav__item" data-route="sponsor" href="#sponsor">
+            후원 및 광고 문의
           </a>
         </nav>
-        {/* 모바일/태블릿 햄버거 (PC에서는 display:none) */}
-        <button className="nav-toggle" id="navToggle" aria-label="메뉴" aria-expanded="false" type="button">
+        <button
+          className="nav-toggle"
+          id="navToggle"
+          aria-label="메뉴"
+          aria-expanded="false"
+          type="button"
+        >
           <span /><span /><span />
         </button>
       </header>
 
       <section className="intro" id="intro" ref={introRef}>
         <div className="intro__logo">
+          {/* 한글 타이틀 캔버스 — 호랑이와 동일한 브러시 리빌/erase 적용 (JS가 텍스트를 그려둠) */}
+          <canvas
+            className="intro__text"
+            ref={textCanvasRef}
+            width={1126}
+            height={330}
+            aria-label="월간 크림슨"
+          />
           <canvas className="intro__tiger" ref={tigerCanvasRef} width={1126} height={739} aria-hidden />
-          <canvas className="intro__text" ref={textCanvasRef} width={1126} height={330} aria-label="monthly Krimson" />
         </div>
         <button className="intro__skip" id="introSkip">
           SKIP
@@ -1176,11 +1208,8 @@ export default function Home() {
           <img src="/assets/textlogo.png" alt="monthly Krimson" />
         </div>
 
-        <div className="bg-tiger-right" aria-hidden>
-          <img src="/assets/tiger.png" alt="" />
-        </div>
-
         <section className="mag" id="mag" aria-label="매거진">
+          <h1 className="mag__title">월간 크림슨</h1>
           <div className="mag__viewport" id="magViewport" ref={magViewportRef}>
             <div className="mag__track" id="magTrack" ref={magTrackRef}>
               {MAGAZINES.map((m, i) => (
@@ -1192,11 +1221,12 @@ export default function Home() {
                 >
                   <img className="mag-card__cover" src={m.cover} alt={`${m.title} ${m.issue}`} />
                   <div className="mag-card__veil" />
-                  <div className="mag-card__meta">
-                    <div className="mag-card__issue">{m.issue}</div>
-                    <div className="mag-card__title">{m.title}</div>
-                    <span className="mag-card__tag">{m.ready ? "지금 읽기" : "준비 중"}</span>
-                  </div>
+                  {/* 커밍순(ready:false)은 커버만 노출 — 메타 영역 생략 */}
+                  {m.ready ? (
+                    <div className="mag-card__meta">
+                      <div className="mag-card__issue">{m.issue}</div>
+                    </div>
+                  ) : null}
                 </article>
               ))}
             </div>
@@ -1205,15 +1235,6 @@ export default function Home() {
             드래그하여 다른 호 보기
           </div>
         </section>
-
-        {/* 카드 위에서도 같은 위치에 호랑이가 이어 보이도록 — 어두운 veil에서만 옅게 비침.
-            우측: 활성카드 오른쪽 접힌 카드 4장 그룹의 중앙. 좌측: 활성카드 왼쪽 접힌 카드 4장 그룹 중앙(미러). */}
-        <div className="bg-tiger-right bg-tiger-right--over" aria-hidden>
-          <img src="/assets/tiger.png" alt="" />
-        </div>
-        <div className="bg-tiger-right bg-tiger-right--over bg-tiger-right--over-left" aria-hidden>
-          <img src="/assets/tiger.png" alt="" />
-        </div>
 
         <section className="tube" id="tube" aria-label="유튜브 콘텐츠">
           <div className="tube__head">
@@ -1266,8 +1287,185 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="page-view" id="pageView" hidden>
-          <div className="page-view__inner" id="pageViewInner" />
+        <section className="page-view" id="pageView" hidden={!pageContent}>
+          {pageContent ? (
+            <div className="page-view__inner" id="pageViewInner">
+              <h1>{pageContent.h}</h1>
+              {pageContent.image ? (
+                <img
+                  className="page-view__image"
+                  src={pageContent.image}
+                  alt={pageContent.h}
+                />
+              ) : null}
+              {pageContent.p ? (
+                <p dangerouslySetInnerHTML={{ __html: pageContent.p }} />
+              ) : !pageContent.image ? (
+                <p className="page-view__empty">업로드된 자료가 없어요.</p>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+
+        {/* 모바일 메인 — CSS로 (max-width:640px) + home 라우트에서만 노출 */}
+        <section className="m-home" aria-label="모바일 메인 콘텐츠">
+          <section className="m-sec">
+            <header className="m-sec__head">
+              <span className="m-sec__rule" aria-hidden />
+              <h2 className="m-sec__title">월간 크림슨</h2>
+              <span className="m-sec__rule" aria-hidden />
+            </header>
+            <article
+              className={"m-mag" + (latestMagazine.ready ? " is-ready" : "")}
+              onClick={() => {
+                if (latestMagazine.ready) setReaderOpen(latestMagazine);
+                else showToast(`${latestMagazine.issue} — 준비 중입니다`);
+              }}
+            >
+              <img
+                className="m-mag__cover"
+                src={latestMagazine.cover}
+                alt={`${latestMagazine.title} ${latestMagazine.issue}`}
+              />
+              <div className="m-mag__meta">
+                <div className="m-mag__issue">{latestMagazine.issue}</div>
+              </div>
+            </article>
+            <p className="m-sec__slogan">
+              <span>{SECTION_SLOGANS.magazine.line1}</span>
+              {SECTION_SLOGANS.magazine.line2 ? (
+                <span>{SECTION_SLOGANS.magazine.line2}</span>
+              ) : null}
+            </p>
+          </section>
+
+          <section className="m-sec">
+            <header className="m-sec__head">
+              <span className="m-sec__rule" aria-hidden />
+              <h2 className="m-sec__title">크림슨 종족</h2>
+              <span className="m-sec__rule" aria-hidden />
+            </header>
+            <div className="m-tube-list">
+              {latestQueenVideos.map((v) => (
+                <article
+                  key={v.id}
+                  className={"m-tube-card" + (v.ready ? " is-ready" : "")}
+                  onClick={() => {
+                    if (v.ready) setPlayerOpen(v);
+                    else showToast("다음 에피소드 준비 중입니다");
+                  }}
+                >
+                  <div className="m-tube-card__thumbwrap">
+                    {v.thumb ? (
+                      <img
+                        className="m-tube-card__thumb"
+                        src={v.thumb}
+                        alt={v.title}
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="m-tube-card__thumb m-tube-card__thumb--blank" />
+                    )}
+                    <div className="m-tube-card__play">
+                      <span />
+                    </div>
+                    {v.dur ? <div className="m-tube-card__dur">{v.dur}</div> : null}
+                  </div>
+                  <div className="m-tube-card__meta">
+                    <div className="m-tube-card__ep">{v.ep}</div>
+                    <div className="m-tube-card__title">{v.title}</div>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <p className="m-sec__slogan">
+              <span>{SECTION_SLOGANS.queen.line1}</span>
+              {SECTION_SLOGANS.queen.line2 ? (
+                <span>{SECTION_SLOGANS.queen.line2}</span>
+              ) : null}
+            </p>
+          </section>
+
+          {untoldVideoAsVideo ? (
+            <section className="m-sec">
+              <header className="m-sec__head">
+                <span className="m-sec__rule" aria-hidden />
+                <h2 className="m-sec__title">차마 못다한 이야기</h2>
+                <span className="m-sec__rule" aria-hidden />
+              </header>
+              <article
+                className="m-tube-card is-ready"
+                onClick={() => setPlayerOpen(untoldVideoAsVideo)}
+              >
+                <div className="m-tube-card__thumbwrap">
+                  <img
+                    className="m-tube-card__thumb"
+                    src={untoldVideoAsVideo.thumb}
+                    alt={untoldVideoAsVideo.title}
+                    loading="lazy"
+                  />
+                  <div className="m-tube-card__play">
+                    <span />
+                  </div>
+                  {untoldVideoAsVideo.dur ? (
+                    <div className="m-tube-card__dur">{untoldVideoAsVideo.dur}</div>
+                  ) : null}
+                </div>
+                <div className="m-tube-card__meta">
+                  {untoldVideoAsVideo.ep ? (
+                    <div className="m-tube-card__ep">{untoldVideoAsVideo.ep}</div>
+                  ) : null}
+                  <div className="m-tube-card__title">{untoldVideoAsVideo.title}</div>
+                </div>
+              </article>
+              <p className="m-sec__slogan">
+                <span>{SECTION_SLOGANS.untold.line1}</span>
+                {SECTION_SLOGANS.untold.line2 ? (
+                  <span>{SECTION_SLOGANS.untold.line2}</span>
+                ) : null}
+              </p>
+            </section>
+          ) : null}
+
+          <footer className="m-footer">
+            <a
+              className="m-footer__link"
+              href={CHANNEL_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="유튜브 채널"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z"
+                />
+              </svg>
+            </a>
+            <a
+              className="m-footer__link"
+              href={INSTAGRAM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="인스타그램"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="5" />
+                <circle cx="12" cy="12" r="4" />
+                <circle cx="17.5" cy="6.5" r="0.6" fill="currentColor" stroke="none" />
+              </svg>
+            </a>
+            <a
+              className="m-footer__link"
+              href={`mailto:${CONTACT_EMAIL}`}
+              aria-label="이메일 보내기"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="5" width="18" height="14" rx="2.5" />
+                <path d="M3.5 6.5 12 13l8.5-6.5" />
+              </svg>
+            </a>
+          </footer>
         </section>
       </main>
 
@@ -1276,9 +1474,12 @@ export default function Home() {
           <span className="reader__title" id="readerTitle">
             {readerOpen ? `${readerOpen.title} · ${readerOpen.issue}` : ""}
           </span>
-          <span className="reader__progress" id="readerProgress">
-            {readerProgress}
-          </span>
+          {/* PDF 모드에서는 페이지 진행도 숨김 (iframe 내부 PDF 뷰어가 자체 컨트롤 제공) */}
+          {readerOpen && !readerOpen.pdf ? (
+            <span className="reader__progress" id="readerProgress">
+              {readerProgress}
+            </span>
+          ) : null}
           <button
             className="reader__close"
             id="readerClose"
@@ -1288,21 +1489,30 @@ export default function Home() {
             ×
           </button>
         </div>
-        <div className="reader__scroll" id="readerScroll" ref={readerScrollRef}>
-          {readerOpen
-            ? Array.from({ length: readerOpen.pages }, (_, i) => {
-                const n = String(i + 1).padStart(2, "0");
-                return (
-                  <img
-                    key={n}
-                    loading={i < 2 ? "eager" : "lazy"}
-                    src={`${readerOpen.pagePath}${n}.png`}
-                    alt={`${i + 1} 페이지`}
-                  />
-                );
-              })
-            : null}
-        </div>
+        {readerOpen?.pdf ? (
+          <iframe
+            key={readerOpen.id}
+            className="reader__pdf"
+            src={`${readerOpen.pdf}#view=FitH&toolbar=1&navpanes=0`}
+            title={`${readerOpen.title} ${readerOpen.issue}`}
+          />
+        ) : readerOpen && readerOpen.pages > 0 ? (
+          <div className="reader__scroll" id="readerScroll" ref={readerScrollRef}>
+            {Array.from({ length: readerOpen.pages }, (_, i) => {
+              const n = String(i + 1).padStart(2, "0");
+              return (
+                <img
+                  key={n}
+                  loading={i < 2 ? "eager" : "lazy"}
+                  src={`${readerOpen.pagePath}${n}.png`}
+                  alt={`${i + 1} 페이지`}
+                />
+              );
+            })}
+          </div>
+        ) : readerOpen ? (
+          <div className="reader__empty">업로드된 자료가 없어요.</div>
+        ) : null}
       </div>
 
       <div className="player" id="player" hidden={!playerOpen}>

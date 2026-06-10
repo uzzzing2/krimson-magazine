@@ -5,6 +5,9 @@ export type Magazine = {
   cover: string;
   pages: number;
   pagePath?: string;
+  /** PDF 파일 경로(public 기준). 설정되면 reader가 PDF 뷰어(iframe)로 표시.
+   *  없으면 기존 page-NN.png 이미지 스택으로 폴백. */
+  pdf?: string;
   ready: boolean;
 };
 
@@ -21,6 +24,23 @@ export type Video = {
 
 export const CHANNEL_URL = "https://www.youtube.com/@crimsonspecies";
 
+// 어드민에서 등록하는 풀스크린 배경 이미지 (fixed). null이면 BG 비표시.
+// TODO: 어드민 연결 후 실제 이미지 경로(예: "/assets/bg/main.jpg")로 교체
+export const BG_IMAGE: string | null = null;
+
+// 메인 m-home 섹션 슬로건 — 어드민에서 두 줄을 각각 입력.
+// line2 비워두면 한 줄로 표시.
+export type SectionSlogan = { line1: string; line2?: string };
+export const SECTION_SLOGANS: Record<"magazine" | "queen" | "untold", SectionSlogan> = {
+  magazine: { line1: "매달 새로 쓰는", line2: "우리들의 이야기" },
+  queen:    { line1: "영상으로 펼치는", line2: "크림슨의 시선" },
+  untold:   { line1: "지면에 담지 못한", line2: "진짜 이야기" },
+};
+
+// 푸터 SNS — TODO: 실제 계정 URL/이메일로 교체
+export const INSTAGRAM_URL = "https://www.instagram.com/";
+export const CONTACT_EMAIL = "contact@krimsonspecies.com";
+
 // 재생목록
 export const PLAYLIST_QUEEN_URL =
   "https://www.youtube.com/playlist?list=PL1AE1JOfuZv3B2GXO-zv2fKhq0yXNDYTb";
@@ -35,6 +55,8 @@ export const MAGAZINES: Magazine[] = [
     cover: "/assets/magazine/cover-01.png",
     pages: 75,
     pagePath: "/assets/magazine/page-",
+    // PDF 업로드 후 활성화: pdf: "/assets/magazine/krimson-2026-06.pdf"
+    // 미지정 시 page-NN.png 이미지 스택으로 표시
     ready: true,
   },
   {
@@ -70,6 +92,16 @@ export const MAGAZINES: Magazine[] = [
     ready: false,
   },
 ];
+
+/** 가장 최신 발행된 매거진(ready=true 중 마지막)의 인덱스.
+ *  배열 순서: [오래된 발행본, ..., 최신 발행본(center), 커밍순...]
+ *  새 호가 추가될 때마다 ready: true 항목이 늘어나면서 LATEST 가 자동 갱신 → 캐러셀의 중앙도 자동 이동.
+ *  발행본이 하나도 없으면 0. */
+export const LATEST_READY_INDEX = MAGAZINES.reduce(
+  (latest, m, i) => (m.ready ? i : latest),
+  0,
+);
+export const LATEST_MAGAZINE = MAGAZINES[LATEST_READY_INDEX] ?? MAGAZINES[0];
 
 // 크림슨 퀸 (상단 메뉴) — 재생목록 PL...YTb
 export const VIDEOS_QUEEN: Video[] = [
@@ -131,17 +163,47 @@ export const VIDEOS_UPCOMING: Video[] = [
 // DOM 렌더 순서: 크림슨 퀸 → 찾아서 → 업로드 예정 (노출 여부는 라우트별 CSS로 제어)
 export const ALL_VIDEOS: Video[] = [...VIDEOS_QUEEN, ...VIDEOS_FIND, ...VIDEOS_UPCOMING];
 
-export const PAGE_CONTENT: Record<string, { h: string; p: string }> = {
-  about: {
-    h: "소개",
-    p: "월간 크림슨은 고려대학교 교우들을 잇는 알럼나이 매거진입니다.<br/>붉은 호랑이의 기개를 담아 매월 새로운 이야기를 전합니다.<br/>매거진과 영상 콘텐츠 '크림슨 퀸'으로 교우 사회의 오늘을 기록합니다.",
+// 차마 못다한 이야기 — 어드민에서 직접 입력하는 YouTube 영상 1개 (모바일 홈 섹션)
+// null이면 섹션 비표시. id는 YouTube video ID(예: "fNGqcb-tgJA").
+export const UNTOLD_VIDEO: {
+  id: string;
+  ep?: string;
+  title: string;
+  dur?: string;
+  /** 비워두면 https://i.ytimg.com/vi/${id}/hqdefault.jpg 사용 */
+  thumb?: string;
+} | null = {
+  // TODO: 어드민 연결 후 실제 영상으로 교체
+  id: "1zJIQss7fhc",
+  ep: "임시 미리보기",
+  title: "차마 못다한 이야기 — 어드민 연결 전 임시 영상",
+  dur: "21:21",
+  thumb: "/assets/youtube/1zJIQss7fhc.jpg",
+};
+
+/** 단일 라우트 페이지 콘텐츠 — image 또는 p 또는 둘 다 표시. */
+export const PAGE_CONTENT: Record<
+  string,
+  { h: string; p?: string; image?: string }
+> = {
+  // #1 — 이미지 1장
+  wonder: {
+    h: "우리가 궁금해?",
+    image: "/assets/who/1.jpeg",
   },
-  notice: {
-    h: "공지사항",
-    p: "창간호(2026년 6월호)가 발행되었습니다.<br/>매월 말 신규 호와 '크림슨 퀸' 에피소드가 업데이트됩니다.<br/>교우 여러분의 많은 관심과 참여 부탁드립니다.",
+  // #2 — 임시 준비중 (최종: 이미지 1장 + 텍스트)
+  regret: {
+    h: "안 보면 후회할걸",
+    p: "준비 중입니다.<br/>곧 만나보실 수 있습니다.",
   },
-  board: {
-    h: "자유게시판",
-    p: "교우들의 이야기를 나누는 공간입니다.<br/>현재 베타 운영 중이며, 곧 정식 오픈 예정입니다.",
+  // #6 — 임시 준비중 (최종: 직접 추가하는 유튜브 링크 1개)
+  untold: {
+    h: "차마 못다 한 이야기",
+    p: "준비 중입니다.<br/>곧 만나보실 수 있습니다.",
+  },
+  // #7 — 이미지 1장
+  sponsor: {
+    h: "후원 및 광고 문의",
+    image: "/assets/contact/7page.jpeg",
   },
 };
